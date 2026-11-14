@@ -1,92 +1,94 @@
-# Dental XR Viewer – Prototyp
+# Dental XR Viewer – Prototype
 
-Ein Viewer für STL-, PLY-, OBJ- und GLB-Modelle, der im Browser der **Meta Quest 3** läuft (WebXR).
-Es muss keine App installiert werden. **Die Dateien werden nur lokal im Browser geöffnet und nicht hochgeladen.**
+A viewer for STL, PLY, OBJ and GLB models that runs in the browser of the **Meta Quest 3** (WebXR).
+No app needs to be installed. **Files are only opened locally in the browser and are never uploaded.**
 
-Der Viewer besteht aus einer einzigen Datei: `index.html`.
+**Live:** https://maudo007.github.io/dental-xr/
+
+The viewer is a single file: `index.html`.
 
 ---
 
-## 1. Workflow: vom Fall zur Brille
+## 1. Workflow: from case to headset
 
-1. **Planung wie bisher** (R2Gate, coDiagnoSiX, Diagnocat …): DVT und Intraoralscan ausrichten und segmentieren.
-2. **Alle Segmente eines Falls als STL exportieren**, z. B. OK, UK, Nervkanal, Zähne, Implantat und Bohrschablone.
-   Wichtig: Alle Dateien müssen aus **demselben Projekt** stammen, damit sie dasselbe Koordinatensystem haben.
-3. **Dateinamen pseudonymisieren** (z. B. `Fall07_UK.stl`), denn der Dateiname wird in der Brille angezeigt.
-4. Optional: **sehr große Dateien verkleinern.** Ein OK mit ca. 1,4 Mio. Dreiecken (≈ 70 MB) läuft auf der Quest 3 eher zäh.
-   Mit Blender (Modifier „Decimate“) oder Meshmixer auf ca. 200.000–300.000 Dreiecke reduzieren.
-   Für die Darstellung reicht das völlig.
-5. STLs auf die Quest übertragen (siehe Abschnitt 3) und im Viewer laden.
+1. **Plan as usual** (R2Gate, coDiagnostiX, Diagnocat …): align and segment the CBCT and the intraoral scan.
+2. **Export all segments of a case as STL**, e.g. maxilla, mandible, nerve canal, teeth, implant and surgical guide.
+   Important: all files must come from **the same project** so they share the same coordinate system.
+3. **Pseudonymize the file names** (e.g. `Case07_mandible.stl`), because the file name is shown in the headset.
+4. Optional: **reduce very large files.** A maxilla with about 1.4 million triangles (≈ 70 MB) runs sluggishly on the Quest 3.
+   Use Blender (“Decimate” modifier) or Meshmixer to reduce it to about 200,000–300,000 triangles.
+   That is plenty for visualization.
+5. Transfer the STLs to the Quest (see section 3) and load them in the viewer.
 
-## 2. Viewer bereitstellen (einmalig)
+## 2. Hosting the viewer (one-time)
 
-WebXR funktioniert nur über **HTTPS**. Am einfachsten geht das mit **GitHub Pages** (kostenlos):
+WebXR only works over **HTTPS**. The easiest option is **GitHub Pages** (free):
 
-1. Auf github.com ein Konto anlegen und ein neues Repository erstellen, z. B. `dental-xr`.
-2. Die Datei `index.html` hochladen („Add file → Upload files“).
-3. Unter *Settings → Pages* die Option *Branch: main* wählen und speichern.
-4. Nach ca. 1 Minute ist der Viewer unter `https://<name>.github.io/dental-xr/` erreichbar.
-   Diesen Link geben Sie den Studierenden.
+1. Create an account on github.com and a new repository, e.g. `dental-xr`.
+2. Upload the file `index.html` (“Add file → Upload files”).
+3. Under *Settings → Pages* select *Branch: main* and save.
+4. After about 1 minute the viewer is available at `https://<name>.github.io/dental-xr/`.
+   Give this link to your students.
 
-Auf dem Server liegt nur der Viewer selbst und **keine Patientendaten**.
-Die Brille braucht Internet, weil die 3D-Bibliothek (three.js) beim Öffnen geladen wird.
+The server only hosts the viewer itself and **no patient data**.
+The headset needs an internet connection because the 3D library (three.js) is loaded when the page opens.
 
-## 3. STL-Dateien auf die Quest bringen
+## 3. Getting STL files onto the Quest
 
-- **Per USB-Kabel:** Quest an den Mac anschließen, in der Brille „Zugriff auf Daten erlauben“ bestätigen und die Dateien
-  mit *OpenMTP* oder *Android File Transfer* in den Ordner `Download` kopieren.
-- **Per Download:** die Datei in der Brille aus einem (institutionellen) Cloud-Ordner herunterladen. Dabei nur pseudonymisierte Daten verwenden.
+- **Via USB cable:** connect the Quest to your Mac, confirm “Allow access to data” in the headset and copy the files
+  into the `Download` folder using *OpenMTP* or *Android File Transfer*.
+- **Via download:** download the file in the headset from an (institutional) cloud folder. Use pseudonymized data only.
 
-Danach im Quest-Browser auf **„Dateien laden“** tippen und die STLs auswählen. Mehrere Dateien gleichzeitig wählen ist möglich.
+Then tap **“Load files”** in the Quest browser and select the STLs. Selecting several files at once is possible.
 
-## 4. Bedienung
+## 4. Controls
 
-**Am Bildschirm (vor dem Start in der Brille, auch am Mac zum Vorbereiten):**
+**On screen (before entering the headset view, also on the Mac for preparation):**
 
-- *Ausrichtung:* DICOM-basierte STLs liegen meist mit Z nach oben. Ein Klick auf **„X 90°“** stellt das Modell auf.
-- *Deckkraft und Farbe* pro Segment einstellen, z. B. den Knochen halbtransparent machen, damit Nerv und Implantat sichtbar werden.
-- *Schnittebene:* den Schnitt entlang der Achse X, Y oder Z verschieben.
-- *Landmarken:* 3 gut tastbare Punkte am Modell anklicken, z. B. Höckerspitze 16, Höckerspitze 26 und Inzisalkante 31.
+- *Orientation:* DICOM-based STLs are usually Z-up. Clicking **“X 90°”** stands the model upright.
+- *Opacity and color* per segment, e.g. make the bone semi-transparent so the nerve and implant become visible.
+- *Clipping plane:* move the cut along the X, Y or Z axis.
+- *Landmarks:* click 3 easily palpable points on the model, e.g. cusp tip 16, cusp tip 26 and incisal edge 31.
 
-**In der Brille (Controller und Hand-Tracking funktionieren beide):**
+**In the headset (both controllers and hand tracking work):**
 
-In der Brille ist **nur das Modell** zu sehen, frei schwebend im Raum. Menü, Strahlen und Controller-Modelle sind ausgeblendet.
+In the headset you see **only the model**, floating freely in the room. Menu, rays and controller models are hidden.
 
-| Aktion | Controller | Hand |
+| Action | Controller | Hand |
 |---|---|---|
-| Menü ein-/ausblenden | Taste **B** oder **Y** | **Doppel-Pinch** ins Leere |
-| Registrierung starten | Taste **A** oder **X** | Menü öffnen, dann „Registrieren“ |
-| Modell greifen, bewegen, drehen | Grifftaste (seitlich) oder Trigger | Pinch |
-| Skalieren | mit beiden Controllern greifen und auseinanderziehen | mit beiden Händen greifen und auseinanderziehen |
-| Menü-Knopf drücken (nur bei offenem Menü) | Strahl auf den Knopf, Trigger | auf den Knopf zeigen, Pinch |
+| Show/hide menu | **B** or **Y** button | **Double pinch** in empty space |
+| Start registration | **A** or **X** button | Open the menu, then “Register” |
+| Grab, move, rotate the model | Grip button (side) or trigger | Pinch |
+| Scale | Grab with both controllers and pull apart | Grab with both hands and pull apart |
+| Press a menu button (only while the menu is open) | Point the ray at the button, trigger | Point at the button, pinch |
 
-Im Menü stehen außerdem: Segmente ein/aus, Deckkraft (100/60/30 %), Schnittebene, Größe **1:1 / ×2 / ×4**, „Vor mich“, Fixieren/Lösen und Registrierung.
-Kurze Hinweise (z. B. „Punkt 2/3 antippen“) erscheinen kurz unten im Blickfeld und verschwinden wieder.
+The menu also offers: segments on/off, opacity (100/60/30 %), clipping plane, size **1:1 / ×2 / ×4**, “In front of me”, Lock/Unlock and Register.
+Short hints (e.g. “Tap point 2/3 on the patient”) briefly appear at the bottom of your view and then disappear.
 
-## 5. Matching mit dem Patienten (3-Punkt-Verfahren, ohne Marker)
+## 5. Matching to the patient (3-point method, markerless)
 
-1. Am Bildschirm 3 Landmarken am Modell setzen (siehe oben). Alternativ geht das auch in der Brille über „Landmarken“.
-2. In der Brille die Taste **A/X** drücken oder im Menü **„Registrieren“** wählen. Das Menü verschwindet daraufhin.
-3. Dieselben 3 Punkte **in derselben Reihenfolge** am Phantom oder Patienten antippen:
-   - *Hand:* genau am Punkt pinchen
-   - *Controller:* mit der Spitze des Controllers an den Punkt gehen und den Trigger drücken
-4. Das Modell springt in Originalgröße (1:1) auf den Patienten und wird **fixiert**. Greifen ist dann gesperrt,
-   damit es sich während der Behandlung nicht verschiebt. Die mittlere Abweichung der 3 Punkte wird kurz in mm angezeigt.
-5. Lösen geht über das Menü („Fixiert – lösen“). Neu registrieren geht jederzeit mit A/X.
+1. Set 3 landmarks on the model on screen (see above). Alternatively, use “Landmarks” in the headset menu.
+2. In the headset press **A/X** or choose **“Register”** in the menu. The menu then disappears.
+3. Tap the same 3 points **in the same order** on the phantom or patient:
+   - *Hand:* pinch exactly at the point
+   - *Controller:* touch the point with the tip of the controller and pull the trigger
+4. The model jumps onto the patient at original size (1:1) and is **locked**. Grabbing is then disabled
+   so it cannot shift during treatment. The mean deviation of the 3 points is briefly shown in mm.
+5. Unlock via the menu (“Locked – unlock”). You can re-register at any time with A/X.
 
-**Grenzen:** Das Modell ist im **Raum** verankert, nicht am Kopf. Bewegt sich der Kopf, muss neu registriert werden.
-Die Genauigkeit der Quest 3 liegt im Millimeter- bis Zentimeterbereich.
-Der Viewer ist deshalb für **Lehre, Phantomkurs und Aufklärung** gedacht. Für Navigation ist er ungeeignet,
-und für die klinische Anwendung gelten MDR-Vorgaben und ein Ethikvotum.
+**Limitations:** The model is anchored in the **room**, not to the head. If the head moves, you need to register again.
+The accuracy of the Quest 3 is in the millimeter-to-centimeter range.
+The viewer is therefore intended for **teaching, phantom courses and patient education**. It is not suitable for navigation,
+and clinical use is subject to MDR requirements and ethics approval.
 
-## 6. Testen am Mac ohne Brille
+## 6. Testing on a Mac without a headset
 
-Die Seite lässt sich auch am Mac öffnen (Chrome oder Safari). Laden, Ausrichten, Schnittebene und Landmarken funktionieren dort normal.
-Die Knöpfe „AR/VR starten“ sind nur in der Brille aktiv.
+The page can also be opened on a Mac (Chrome or Safari). Loading, orientation, clipping and landmarks work normally there.
+The “Start AR/VR” buttons are only active in the headset.
 
-## 7. Mögliche nächste Schritte
+## 7. Possible next steps
 
-- Große Scans automatisch im Viewer verkleinern
-- Mehrere Fälle als Liste, die Studierenden per Link öffnen
-- Gemeinsame Sitzung: Dozent und Studierende sehen dasselbe Modell
-- Vision Pro: grundsätzlich lauffähig (Safari, VR-Modus), noch nicht getestet
+- Automatically reduce large scans inside the viewer
+- Several cases as a list that students open via link
+- Shared session: instructor and students see the same model
+- Vision Pro: should run in principle (Safari, VR mode), not yet tested

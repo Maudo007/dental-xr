@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -64,62 +64,62 @@
 <body>
 <aside id="side">
   <h1>Dental XR Viewer</h1>
-  <p class="sub">Prototyp · STL / PLY / OBJ / GLB · Dateien bleiben lokal im Browser</p>
+  <p class="sub">Prototype · STL / PLY / OBJ / GLB · files stay local in the browser</p>
 
-  <h2>Modelle</h2>
+  <h2>Models</h2>
   <div class="row">
-    <label class="btn primary">Dateien laden<input id="file" type="file" multiple accept=".stl,.ply,.obj,.glb,.gltf" hidden></label>
-    <button id="demo">Demo-Fall</button>
-    <button id="clear">Leeren</button>
+    <label class="btn primary">Load files<input id="file" type="file" multiple accept=".stl,.ply,.obj,.glb,.gltf" hidden></label>
+    <button id="demo">Demo case</button>
+    <button id="clear">Clear</button>
   </div>
-  <p class="hint">Alle STLs eines Falls gemeinsam laden – sie behalten ihr gemeinsames Koordinatensystem aus der Planungssoftware.</p>
+  <p class="hint">Load all STLs of a case together – they keep the shared coordinate system from the planning software.</p>
   <div id="segs" style="margin-top:10px"></div>
 
-  <h2>Ausrichtung</h2>
+  <h2>Orientation</h2>
   <div class="row">
     <button data-rot="x">↻ X 90°</button>
     <button data-rot="y">↻ Y 90°</button>
     <button data-rot="z">↻ Z 90°</button>
   </div>
-  <p class="hint">Liegt das Modell statt zu stehen (DICOM: Z nach oben)? Einmal „X“ drücken. Die Zahnreihe sollte zum Betrachter zeigen.</p>
+  <p class="hint">Model lying flat instead of upright (DICOM: Z up)? Press “X” once. The dental arch should face the viewer.</p>
 
-  <h2>Schnittebene</h2>
+  <h2>Clipping plane</h2>
   <div class="row">
-    <button id="clipOn">Schnitt aus</button>
-    <select id="clipAxis"><option value="x">Achse X</option><option value="y" selected>Achse Y</option><option value="z">Achse Z</option></select>
+    <button id="clipOn">Clipping off</button>
+    <select id="clipAxis"><option value="x">Axis X</option><option value="y" selected>Axis Y</option><option value="z">Axis Z</option></select>
   </div>
   <input id="clipPos" type="range" min="-1" max="1" step="0.01" value="0" style="margin-top:8px">
 
-  <h2>Landmarken für die Registrierung</h2>
-  <p class="hint" style="margin-top:0">3 gut tastbare Punkte am Modell markieren (z. B. Höckerspitze 16, Höckerspitze 26, Inzisalkante 31). In der Brille werden dieselben Punkte in derselben Reihenfolge am Phantom/Patienten angetippt.</p>
+  <h2>Landmarks for registration</h2>
+  <p class="hint" style="margin-top:0">Mark 3 easily palpable points on the model (e.g. cusp tip 16, cusp tip 26, incisal edge 31). In the headset, tap the same points in the same order on the phantom/patient.</p>
   <div class="row" style="margin-top:8px">
-    <button id="pick">Landmarken setzen</button>
-    <button id="lmClear">Löschen</button>
+    <button id="pick">Set landmarks</button>
+    <button id="lmClear">Delete</button>
   </div>
   <ol id="lmList"></ol>
 
-  <h2>Brille</h2>
+  <h2>Headset</h2>
   <div class="row">
-    <button id="ar" class="primary">AR starten (Passthrough)</button>
-    <button id="vr">VR starten</button>
+    <button id="ar" class="primary">Start AR (passthrough)</button>
+    <button id="vr">Start VR</button>
   </div>
   <p id="xrInfo" class="hint"></p>
 
   <details>
-    <summary>Bedienung in der Brille</summary>
+    <summary>Controls in the headset</summary>
     <ul>
-      <li>In der Brille ist <b>nur das Modell</b> zu sehen. Kein Menü, keine Strahlen.</li>
-      <li><b>Menü ein/aus:</b> Controller-Taste B oder Y · Hand: Doppel-Pinch ins Leere.</li>
-      <li><b>Modell greifen, bewegen, drehen:</b> Grifftaste oder Trigger (Controller) · Pinch (Hand). Mit zwei Händen auseinanderziehen = skalieren.</li>
-      <li><b>Registrieren:</b> Controller-Taste A oder X (oder im Menü „Registrieren“). Danach die 3 Landmarken in derselben Reihenfolge am Patienten antippen: Hand = Pinch genau am Punkt, Controller = Spitze an den Punkt und Trigger drücken. Ein Hinweis im Blickfeld zeigt, welcher Punkt dran ist.</li>
-      <li>Nach dem Registrieren ist das Modell <b>fixiert</b>. Greifen ist dann gesperrt, damit es sich während der Behandlung nicht verschiebt. Lösen geht über das Menü.</li>
+      <li>In the headset you see <b>only the model</b>. No menu, no rays.</li>
+      <li><b>Menu on/off:</b> controller button B or Y · hand: double pinch in empty space.</li>
+      <li><b>Grab, move, rotate the model:</b> grip button or trigger (controller) · pinch (hand). Pull apart with two hands = scale.</li>
+      <li><b>Register:</b> controller button A or X (or “Register” in the menu). Then tap the 3 landmarks on the patient in the same order: hand = pinch exactly at the point, controller = touch the point with the controller tip and pull the trigger. A hint in your view shows which point is next.</li>
+      <li>After registration the model is <b>locked</b>. Grabbing is disabled so it cannot shift during treatment. Unlock it via the menu.</li>
     </ul>
   </details>
 </aside>
 
 <main id="view">
-  <div id="drop">Dateien hier ablegen</div>
-  <div id="pickHint">Landmarken-Modus: auf das Modell klicken</div>
+  <div id="drop">Drop files here</div>
+  <div id="pickHint">Landmark mode: click on the model</div>
   <div id="toast"></div>
 </main>
 
@@ -295,7 +295,7 @@ async function parseFile(file) {
   else if (ext === 'ply') obj = new THREE.Mesh(new PLYLoader().parse(await file.arrayBuffer()));
   else if (ext === 'obj') obj = new OBJLoader().parse(await file.text());
   else if (ext === 'glb' || ext === 'gltf') obj = (await new GLTFLoader().parseAsync(await file.arrayBuffer(), '')).scene;
-  else throw new Error('Format nicht unterstützt: .' + ext);
+  else throw new Error('Unsupported format: .' + ext);
   // Einheiten-Heuristik: sehr kleine Modelle sind vermutlich in Metern → in mm umrechnen
   obj.updateMatrixWorld(true);
   const size = new THREE.Box3().setFromObject(obj).getSize(new V3());
@@ -305,7 +305,7 @@ async function parseFile(file) {
 async function loadFiles(files) {
   files = [...files];
   if (!files.length) return;
-  toast(`Lade ${files.length} Datei(en) …`, 60000);
+  toast(`Loading ${files.length} file(s) …`, 60000);
   const first = !state.centered;
   let ok = 0;
   for (const f of files) {
@@ -313,13 +313,13 @@ async function loadFiles(files) {
       const obj = await parseFile(f);
       addSegment(f.name.replace(/\.[^.]+$/, ''), obj);
       ok++;
-    } catch (e) { console.error(e); toast(`Fehler bei ${f.name}: ${e.message}`); }
+    } catch (e) { console.error(e); toast(`Error in ${f.name}: ${e.message}`); }
   }
   if (ok) {
     updateBounds(first);
     if (first) fitCamera();
     refreshUI();
-    toast(`${ok} Modell(e) geladen`);
+    toast(`${ok} model(s) loaded`);
   }
 }
 
@@ -358,11 +358,11 @@ function loadDemo() {
   const guide = new THREE.TubeGeometry(curve(0.25, 1.0, 0), 80, 5.5, 24, false);
   guide.scale(1, 0.7, 1); guide.translate(0, 12, 0);
 
-  addSegment('Demo – Knochen (UK)', new THREE.Mesh(bone), { color: '#e3d3ad', opacity: 0.55 });
-  addSegment('Demo – Zähne', new THREE.Mesh(teethGeo), { color: '#f4f1ea' });
-  addSegment('Demo – N. alveolaris inf.', new THREE.Mesh(nerve), { color: '#e5484d' });
-  addSegment('Demo – Implantat 46', new THREE.Mesh(implant), { color: '#a9b3c1' });
-  addSegment('Demo – Bohrschablone', new THREE.Mesh(guide), { color: '#4c8dff', opacity: 0.4 });
+  addSegment('Demo – Bone (mandible)', new THREE.Mesh(bone), { color: '#e3d3ad', opacity: 0.55 });
+  addSegment('Demo – Teeth', new THREE.Mesh(teethGeo), { color: '#f4f1ea' });
+  addSegment('Demo – Inferior alveolar nerve', new THREE.Mesh(nerve), { color: '#e5484d' });
+  addSegment('Demo – Implant 46', new THREE.Mesh(implant), { color: '#a9b3c1' });
+  addSegment('Demo – Surgical guide', new THREE.Mesh(guide), { color: '#4c8dff', opacity: 0.4 });
   updateBounds(true);
   fitCamera();
   refreshUI();
@@ -419,7 +419,7 @@ function pickableObjects() { return state.segments.filter(s => s.visible).map(s 
 /* ---------- Registrierung (3-Punkt, starr, 1:1) ---------- */
 const regMarkers = [];
 function startRegistration() {
-  if (state.landmarks.length < 3) { state.reg.msg = 'Erst 3 Landmarken am Modell setzen.'; refreshUI(); return; }
+  if (state.landmarks.length < 3) { state.reg.msg = 'Set 3 landmarks on the model first.'; refreshUI(); return; }
   clearRegMarkers();
   state.pickMode = false;
   state.locked = false;
@@ -431,7 +431,7 @@ function startRegistration() {
 }
 function hudRegPrompt() {
   const k = state.reg.pts.length;
-  hud(`Punkt ${k + 1}/3 am Patienten antippen`, LM_COLORS[k], 0);
+  hud(`Tap point ${k + 1}/3 on the patient`, LM_COLORS[k], 0);
 }
 function clearRegMarkers() {
   regMarkers.forEach(m => { scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
@@ -476,8 +476,8 @@ function solveRegistration() {
   const err = A.reduce((s, a, k) => s + a.clone().applyQuaternion(q).add(t).distanceTo(B[k]), 0) / 3 / MM;
   state.reg.active = false;
   state.locked = true;
-  state.reg.msg = `Registriert (1:1), fixiert. Mittlere Abweichung ${err.toFixed(1)} mm`;
-  hud(`Fixiert · Abweichung ${err.toFixed(1)} mm`, '#3fbf8f', 5000);
+  state.reg.msg = `Registered (1:1), locked. Mean deviation ${err.toFixed(1)} mm`;
+  hud(`Locked · deviation ${err.toFixed(1)} mm`, '#3fbf8f', 5000);
   setTimeout(clearRegMarkers, 4000);
 }
 
@@ -488,7 +488,7 @@ function renderSideList() {
   const box = $('#segs');
   box.innerHTML = '';
   if (!state.segments.length) {
-    box.innerHTML = '<p class="hint">Noch keine Modelle. Dateien hierher ziehen oder „Demo-Fall“ laden.</p>';
+    box.innerHTML = '<p class="hint">No models yet. Drag files here or load the “Demo case”.</p>';
     return;
   }
   for (const s of state.segments) {
@@ -496,12 +496,12 @@ function renderSideList() {
     el.className = 'seg' + (s.visible ? '' : ' off');
     el.innerHTML = `
       <div class="top">
-        <input type="checkbox" ${s.visible ? 'checked' : ''} title="sichtbar">
-        <input type="color" value="${s.color}" title="Farbe">
+        <input type="checkbox" ${s.visible ? 'checked' : ''} title="visible">
+        <input type="color" value="${s.color}" title="Color">
         <span class="name" title=""></span>
-        <button class="x" title="entfernen">✕</button>
+        <button class="x" title="remove">✕</button>
       </div>
-      <div class="op">Deckkraft <input type="range" min="0.05" max="1" step="0.05" value="${s.opacity}"></div>`;
+      <div class="op">Opacity <input type="range" min="0.05" max="1" step="0.05" value="${s.opacity}"></div>`;
     el.querySelector('.name').textContent = s.name;
     el.querySelector('.name').title = s.name;
     el.querySelector('input[type=checkbox]').onchange = e => { s.visible = e.target.checked; s.obj.visible = s.visible; refreshUI(); };
@@ -517,17 +517,17 @@ function renderLandmarks() {
   ['L1', 'L2', 'L3'].forEach((n, i) => {
     const li = document.createElement('li');
     const set = state.landmarks[i];
-    li.innerHTML = `<span style="background:${LM_COLORS[i]}"></span>${set ? 'gesetzt' : 'offen'}`;
+    li.innerHTML = `<span style="background:${LM_COLORS[i]}"></span>${set ? 'set' : 'open'}`;
     ol.appendChild(li);
   });
 }
 function syncControls() {
-  $('#clipOn').textContent = state.clip.on ? 'Schnitt an' : 'Schnitt aus';
+  $('#clipOn').textContent = state.clip.on ? 'Clipping on' : 'Clipping off';
   $('#clipOn').classList.toggle('on', state.clip.on);
   $('#clipAxis').value = state.clip.axis;
   $('#clipPos').value = state.clip.frac;
   $('#pick').classList.toggle('on', state.pickMode);
-  $('#pick').textContent = state.pickMode ? 'Klicken Sie aufs Modell …' : 'Landmarken setzen';
+  $('#pick').textContent = state.pickMode ? 'Click on the model …' : 'Set landmarks';
   $('#pickHint').style.display = state.pickMode && !renderer.xr.isPresenting ? 'block' : 'none';
 }
 
@@ -539,7 +539,7 @@ $('#clipOn').onclick = () => { state.clip.on = !state.clip.on; refreshUI(); };
 $('#clipAxis').onchange = e => { state.clip.axis = e.target.value; refreshUI(); };
 $('#clipPos').oninput = e => { state.clip.frac = +e.target.value; panelDirty = true; };
 $('#pick').onclick = () => {
-  if (!state.segments.length) return toast('Erst ein Modell laden.');
+  if (!state.segments.length) return toast('Load a model first.');
   if (state.landmarks.length >= 3) clearLandmarks();
   state.pickMode = !state.pickMode; refreshUI();
 };
@@ -581,8 +581,8 @@ async function checkXR() {
   if (!navigator.xr) {
     $('#ar').disabled = $('#vr').disabled = true;
     info.textContent = window.isSecureContext
-      ? 'WebXR ist hier nicht verfügbar. Öffnen Sie die Seite im Browser der Meta Quest 3.'
-      : 'WebXR braucht eine HTTPS-Adresse (oder localhost). Siehe Anleitung.';
+      ? 'WebXR is not available here. Open this page in the Meta Quest 3 browser.'
+      : 'WebXR requires an HTTPS address (or localhost). See the guide.';
     return;
   }
   const [ar, vr] = await Promise.all([
@@ -590,7 +590,7 @@ async function checkXR() {
     navigator.xr.isSessionSupported('immersive-vr').catch(() => false),
   ]);
   $('#ar').disabled = !ar; $('#vr').disabled = !vr;
-  info.textContent = ar || vr ? 'Brille erkannt – bereit.' : 'Dieses Gerät unterstützt keinen AR/VR-Modus. Öffnen Sie die Seite in der Meta Quest 3.';
+  info.textContent = ar || vr ? 'Headset detected – ready.' : 'This device does not support AR/VR mode. Open this page on the Meta Quest 3.';
 }
 async function startXR(mode) {
   try {
@@ -607,8 +607,8 @@ async function startXR(mode) {
     ctrls.forEach(C => { C.model.visible = mode === 'immersive-vr'; });   // AR: echte Controller im Passthrough
     $('#pickHint').style.display = 'none';
     panelDirty = true;
-    hud('Menü: B/Y-Taste oder Doppel-Pinch', '#e7e9ee', 5000);
-  } catch (e) { console.error(e); toast('Start fehlgeschlagen: ' + e.message, 5000); }
+    hud('Menu: B/Y button or double pinch', '#e7e9ee', 5000);
+  } catch (e) { console.error(e); toast('Start failed: ' + e.message, 5000); }
 }
 renderer.xr.addEventListener('sessionend', () => {
   xrMode = null;
@@ -753,7 +753,7 @@ function grabDist() {
 }
 function startGrab(i) {
   if (grabs.has(i)) return;
-  if (state.locked) { hud('Modell ist fixiert – im Menü lösen', '#f2c14e', 2000); return; }
+  if (state.locked) { hud('Model is locked – unlock in menu', '#f2c14e', 2000); return; }
   grabs.add(i);
   if (grabs.size === 1) { primary = i; setOffset(i); }
   else two = { d0: Math.max(grabDist(), 0.01), s0: modelRoot.scale.x };
@@ -814,8 +814,8 @@ function pollButtons() {
     const edge = k => { const p = pressed(k), was = C.btn[k]; C.btn[k] = p; return p && !was; };
     if (edge(5)) showMenu(!state.menu);
     if (edge(4)) {
-      if (state.reg.active) { state.reg.active = false; clearRegMarkers(); hud('Registrierung abgebrochen', '#f2c14e', 2000); refreshUI(); }
-      else if (state.landmarks.length < 3) hud('Erst 3 Landmarken am Modell setzen', '#f2c14e', 3000);
+      if (state.reg.active) { state.reg.active = false; clearRegMarkers(); hud('Registration cancelled', '#f2c14e', 2000); refreshUI(); }
+      else if (state.landmarks.length < 3) hud('Set 3 landmarks on the model first', '#f2c14e', 3000);
       else startRegistration();
     }
   });
@@ -852,33 +852,33 @@ function layoutPanel() {
     defs.forEach((d, k) => L.push({ id: d[0], kind: 'btn', label: d[1], active: !!d[2], disabled: !!d[3], x: X0 + k * (w + gap), y, w, h: 66 }));
     y += 78;
   };
-  label('Modelle');
-  if (!state.segments.length) { L.push({ kind: 'text', x: X0, y: y + 10, text: 'Keine Modelle geladen' }); y += 60; }
+  label('Models');
+  if (!state.segments.length) { L.push({ kind: 'text', x: X0, y: y + 10, text: 'No models loaded' }); y += 60; }
   state.segments.forEach((s, i) => {
     L.push({ id: 'vis:' + i, kind: 'seg', seg: s, x: X0, y, w: W - 200, h: 66 });
     L.push({ id: 'op:' + i, kind: 'btn', label: Math.round(s.opacity * 100) + ' %', x: X0 + W - 188, y, w: 188, h: 66 });
     y += 78;
   });
-  y += 6; label('Schnittebene');
-  row([['clip', state.clip.on ? 'Schnitt an' : 'Schnitt aus', state.clip.on],
-       ['axis', 'Achse ' + state.clip.axis.toUpperCase()], ['clip-', '◀'], ['clip+', '▶']]);
-  label('Größe & Position');
+  y += 6; label('Clipping plane');
+  row([['clip', state.clip.on ? 'Clipping on' : 'Clipping off', state.clip.on],
+       ['axis', 'Axis ' + state.clip.axis.toUpperCase()], ['clip-', '◀'], ['clip+', '▶']]);
+  label('Size & position');
   const sc = modelRoot.scale.x;
-  row([['sc1', '1:1', Math.abs(sc - 1) < 0.01], ['sc2', '×2', Math.abs(sc - 2) < 0.01], ['sc4', '×4', Math.abs(sc - 4) < 0.01], ['place', 'Vor mich']]);
-  label('Registrierung');
+  row([['sc1', '1:1', Math.abs(sc - 1) < 0.01], ['sc2', '×2', Math.abs(sc - 2) < 0.01], ['sc4', '×4', Math.abs(sc - 4) < 0.01], ['place', 'In front of me']]);
+  label('Registration');
   const n = state.landmarks.length;
   if (state.reg.active) {
-    L.push({ kind: 'text', x: X0, y: y + 12, text: `Punkt ${state.reg.pts.length + 1}/3 am Phantom/Patienten antippen`, color: LM_COLORS[state.reg.pts.length] });
+    L.push({ kind: 'text', x: X0, y: y + 12, text: `Tap point ${state.reg.pts.length + 1}/3 on the phantom/patient`, color: LM_COLORS[state.reg.pts.length] });
     y += 56;
-    row([['regx', 'Abbrechen']]);
+    row([['regx', 'Cancel']]);
   } else {
-    row([['lm', state.pickMode ? 'Aufs Modell zeigen …' : `Landmarken ${n}/3`, state.pickMode],
-         ['reg', 'Registrieren', false, n < 3]]);
+    row([['lm', state.pickMode ? 'Point at the model …' : `Landmarks ${n}/3`, state.pickMode],
+         ['reg', 'Register', false, n < 3]]);
   }
   if (state.reg.msg) { L.push({ kind: 'text', x: X0, y: y + 4, text: state.reg.msg, small: true }); y += 50; }
   y += 8;
-  row([['lock', state.locked ? 'Fixiert – lösen' : 'Fixieren', state.locked], ['close', 'Menü schließen']]);
-  row([['exit', 'Brille verlassen']]);
+  row([['lock', state.locked ? 'Locked – unlock' : 'Lock', state.locked], ['close', 'Close menu']]);
+  row([['exit', 'Exit headset']]);
   return { L, H: y + 20 };
 }
 
@@ -904,7 +904,7 @@ function drawPanel() {
       rr(ctx, 0, 0, PW, it.h, [36, 36, 0, 0]); ctx.fillStyle = hov ? '#26324a' : '#1c2230'; ctx.fill();
       ctx.fillStyle = '#e7e9ee'; ctx.font = '700 38px system-ui, sans-serif'; ctx.fillText('Dental XR Viewer', 32, 48);
       ctx.fillStyle = '#9aa3b2'; ctx.font = '500 24px system-ui, sans-serif'; ctx.textAlign = 'right';
-      ctx.fillText('⠿ hier greifen zum Verschieben', PW - 32, 50); ctx.textAlign = 'left';
+      ctx.fillText('⠿ grab here to move', PW - 32, 50); ctx.textAlign = 'left';
     } else if (it.kind === 'label') {
       ctx.fillStyle = '#9aa3b2'; ctx.font = '600 24px system-ui, sans-serif'; ctx.fillText(it.text.toUpperCase(), it.x + 4, it.y + 18);
     } else if (it.kind === 'text') {
@@ -918,7 +918,7 @@ function drawPanel() {
       ctx.fillStyle = s.visible ? '#e7e9ee' : '#6b7383'; ctx.font = '600 30px system-ui, sans-serif';
       ctx.fillText(fitText(ctx, s.name, it.w - 170), it.x + 70, it.y + it.h / 2 + 1);
       ctx.fillStyle = '#9aa3b2'; ctx.font = '500 24px system-ui, sans-serif'; ctx.textAlign = 'right';
-      ctx.fillText(s.visible ? 'sichtbar' : 'aus', it.x + it.w - 20, it.y + it.h / 2 + 1); ctx.textAlign = 'left';
+      ctx.fillText(s.visible ? 'visible' : 'hidden', it.x + it.w - 20, it.y + it.h / 2 + 1); ctx.textAlign = 'left';
     } else if (it.kind === 'btn') {
       rr(ctx, it.x, it.y, it.w, it.h, 14);
       ctx.fillStyle = it.active ? '#4c8dff' : hov && !it.disabled ? '#33405a' : '#232a37'; ctx.fill();
