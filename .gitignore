@@ -1,0 +1,7 @@
+.DS_Store
+*.stl
+*.ply
+*.obj
+*.glb
+*.gltf
+*.dcm

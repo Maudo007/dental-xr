@@ -1,0 +1,1002 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dental XR Viewer</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1f2430; --line:#2a2f3a;
+    --text:#e7e9ee; --muted:#9aa3b2; --accent:#4c8dff; --danger:#e5484d;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  body{display:flex;height:100vh;overflow:hidden}
+  #side{width:350px;flex:none;overflow-y:auto;background:var(--panel);border-right:1px solid var(--line);padding:18px 16px 32px}
+  #view{flex:1;position:relative;min-width:0;background:radial-gradient(circle at 50% 40%,#1d2433,#0b0d11)}
+  #view canvas{display:block;touch-action:none}
+  h1{font-size:18px;margin:0 0 2px}
+  h2{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:22px 0 8px;font-weight:600}
+  .sub{color:var(--muted);font-size:12px;margin:0}
+  .hint{color:var(--muted);font-size:12px;margin:6px 0 0}
+  .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  button,.btn{appearance:none;border:1px solid var(--line);background:var(--panel2);color:var(--text);
+    border-radius:8px;padding:7px 11px;font:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  button:hover,.btn:hover{border-color:#3d4556}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  .primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .on{background:#24365a;border-color:var(--accent)}
+  select{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font:inherit}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  .seg{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:6px;background:#141820}
+  .seg .top{display:flex;align-items:center;gap:8px}
+  .seg .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .seg input[type=color]{width:24px;height:24px;border:0;padding:0;background:none;cursor:pointer}
+  .seg .x{padding:2px 8px;background:none;border-color:transparent;color:var(--muted)}
+  .seg .op{display:flex;align-items:center;gap:8px;margin-top:4px;color:var(--muted);font-size:12px}
+  .seg.off .name{color:var(--muted);text-decoration:line-through}
+  ol#lmList{margin:8px 0 0;padding-left:20px;color:var(--muted);font-size:12px}
+  ol#lmList li span{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+  details{margin-top:14px;color:var(--muted);font-size:12px}
+  details summary{cursor:pointer;color:var(--text)}
+  details ul{padding-left:18px;margin:8px 0}
+  #toast{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);background:rgba(20,24,32,.92);
+    border:1px solid var(--line);padding:8px 14px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90%}
+  #toast.show{opacity:1}
+  #drop{position:absolute;inset:12px;border:2px dashed var(--accent);border-radius:16px;display:none;
+    align-items:center;justify-content:center;font-size:18px;background:rgba(76,141,255,.08);pointer-events:none}
+  #drop.show{display:flex}
+  #pickHint{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:#24365a;border:1px solid var(--accent);
+    padding:6px 12px;border-radius:8px;font-size:13px;display:none}
+  @media (max-width:760px){
+    body{flex-direction:column}
+    #side{width:auto;height:48vh;border-right:0;border-bottom:1px solid var(--line)}
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<aside id="side">
+  <h1>Dental XR Viewer</h1>
+  <p class="sub">Prototyp · STL / PLY / OBJ / GLB · Dateien bleiben lokal im Browser</p>
+
+  <h2>Modelle</h2>
+  <div class="row">
+    <label class="btn primary">Dateien laden<input id="file" type="file" multiple accept=".stl,.ply,.obj,.glb,.gltf" hidden></label>
+    <button id="demo">Demo-Fall</button>
+    <button id="clear">Leeren</button>
+  </div>
+  <p class="hint">Alle STLs eines Falls gemeinsam laden – sie behalten ihr gemeinsames Koordinatensystem aus der Planungssoftware.</p>
+  <div id="segs" style="margin-top:10px"></div>
+
+  <h2>Ausrichtung</h2>
+  <div class="row">
+    <button data-rot="x">↻ X 90°</button>
+    <button data-rot="y">↻ Y 90°</button>
+    <button data-rot="z">↻ Z 90°</button>
+  </div>
+  <p class="hint">Liegt das Modell statt zu stehen (DICOM: Z nach oben)? Einmal „X“ drücken. Die Zahnreihe sollte zum Betrachter zeigen.</p>
+
+  <h2>Schnittebene</h2>
+  <div class="row">
+    <button id="clipOn">Schnitt aus</button>
+    <select id="clipAxis"><option value="x">Achse X</option><option value="y" selected>Achse Y</option><option value="z">Achse Z</option></select>
+  </div>
+  <input id="clipPos" type="range" min="-1" max="1" step="0.01" value="0" style="margin-top:8px">
+
+  <h2>Landmarken für die Registrierung</h2>
+  <p class="hint" style="margin-top:0">3 gut tastbare Punkte am Modell markieren (z. B. Höckerspitze 16, Höckerspitze 26, Inzisalkante 31). In der Brille werden dieselben Punkte in derselben Reihenfolge am Phantom/Patienten angetippt.</p>
+  <div class="row" style="margin-top:8px">
+    <button id="pick">Landmarken setzen</button>
+    <button id="lmClear">Löschen</button>
+  </div>
+  <ol id="lmList"></ol>
+
+  <h2>Brille</h2>
+  <div class="row">
+    <button id="ar" class="primary">AR starten (Passthrough)</button>
+    <button id="vr">VR starten</button>
+  </div>
+  <p id="xrInfo" class="hint"></p>
+
+  <details>
+    <summary>Bedienung in der Brille</summary>
+    <ul>
+      <li>In der Brille ist <b>nur das Modell</b> zu sehen. Kein Menü, keine Strahlen.</li>
+      <li><b>Menü ein/aus:</b> Controller-Taste B oder Y · Hand: Doppel-Pinch ins Leere.</li>
+      <li><b>Modell greifen, bewegen, drehen:</b> Grifftaste oder Trigger (Controller) · Pinch (Hand). Mit zwei Händen auseinanderziehen = skalieren.</li>
+      <li><b>Registrieren:</b> Controller-Taste A oder X (oder im Menü „Registrieren“). Danach die 3 Landmarken in derselben Reihenfolge am Patienten antippen: Hand = Pinch genau am Punkt, Controller = Spitze an den Punkt und Trigger drücken. Ein Hinweis im Blickfeld zeigt, welcher Punkt dran ist.</li>
+      <li>Nach dem Registrieren ist das Modell <b>fixiert</b>. Greifen ist dann gesperrt, damit es sich während der Behandlung nicht verschiebt. Lösen geht über das Menü.</li>
+    </ul>
+  </details>
+</aside>
+
+<main id="view">
+  <div id="drop">Dateien hier ablegen</div>
+  <div id="pickHint">Landmarken-Modus: auf das Modell klicken</div>
+  <div id="toast"></div>
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+const V3 = THREE.Vector3;
+const MM = 0.001;                      // Modelle in mm → Szene in m (1:1)
+const $ = s => document.querySelector(s);
+
+/* ---------- Renderer / Szene ---------- */
+const view = $('#view');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setClearColor(0x000000, 0);
+renderer.localClippingEnabled = true;
+renderer.xr.enabled = true;
+view.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 0.002, 50);
+camera.position.set(0, 0.04, 0.2);
+const orbit = new OrbitControls(camera, renderer.domElement);
+orbit.enableDamping = true;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.5));
+const sun = new THREE.DirectionalLight(0xffffff, 1.7); sun.position.set(1, 2, 1.5); scene.add(sun);
+const fill = new THREE.DirectionalLight(0xffffff, 0.6); fill.position.set(-1.5, -0.5, -1); scene.add(fill);
+
+const modelRoot = new THREE.Group();   // wird gegriffen / registriert (m)
+const content = new THREE.Group();     // enthält die Segmente (mm)
+content.scale.setScalar(MM);
+modelRoot.add(content);
+scene.add(modelRoot);
+
+const state = {
+  segments: [],
+  centered: false,
+  boxCenter: new V3(), half: new V3(0.03, 0.03, 0.03),
+  clip: { on: false, axis: 'y', frac: 0 },
+  landmarks: [],                       // in content-Koordinaten (mm)
+  pickMode: false,
+  reg: { active: false, pts: [], msg: '' },
+  menu: false,                         // Menü in der Brille sichtbar?
+  locked: false,                       // Modell fixiert (nicht greifbar)
+};
+let segId = 0;
+
+function resize() {
+  if (renderer.xr.isPresenting) return;
+  const w = view.clientWidth, h = view.clientHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / Math.max(h, 1);
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(view);
+resize();
+
+/* ---------- Schnittebene ---------- */
+const clipPlane = new THREE.Plane(new V3(0, 1, 0), 1e6);
+const AXES = { x: new V3(1, 0, 0), y: new V3(0, 1, 0), z: new V3(0, 0, 1) };
+function updateClip() {
+  if (!state.clip.on) { clipPlane.normal.set(0, 1, 0); clipPlane.constant = 1e6; return; }
+  const a = state.clip.axis;
+  const off = state.boxCenter[a] + state.clip.frac * state.half[a];
+  clipPlane.normal.copy(AXES[a]);
+  clipPlane.constant = -off;
+  modelRoot.updateMatrixWorld();
+  clipPlane.applyMatrix4(modelRoot.matrixWorld);
+}
+
+/* ---------- Segmente ---------- */
+const RULES = [
+  [/nerv|nerve|canal|kanal|mandibular/i, '#e5484d'],
+  [/implant/i, '#a9b3c1'],
+  [/guide|schablone|schiene|bohr/i, '#4c8dff'],
+  [/sinus|kieferh/i, '#5cc8e0'],
+  [/zahn|z[aä]hne|tooth|teeth|crown|krone|wax/i, '#f4f1ea'],
+  [/knochen|bone|mandib|maxill|kiefer|cbct|dvt/i, '#e3d3ad'],
+  [/scan|ios|trios|gingiva|zahnfleisch/i, '#e9a99a'],
+];
+const PALETTE = ['#e3d3ad', '#c9d8b6', '#e9a99a', '#9b7bff', '#3fbf8f', '#f2c14e', '#5cc8e0'];
+function colorFor(name) {
+  for (const [re, c] of RULES) if (re.test(name)) return c;
+  return PALETTE[state.segments.length % PALETTE.length];
+}
+
+function addSegment(name, obj, opts = {}) {
+  let vertexColors = false;
+  obj.traverse(o => { if (o.isMesh && o.geometry.attributes.color) vertexColors = true; });
+  const color = opts.color || (vertexColors ? '#ffffff' : colorFor(name));
+  const mat = new THREE.MeshStandardMaterial({
+    color, roughness: 0.55, metalness: 0.05, side: THREE.DoubleSide,
+    clippingPlanes: [clipPlane], vertexColors,
+  });
+  obj.traverse(o => { if (o.isMesh) { o.material = mat; if (!o.geometry.attributes.normal) o.geometry.computeVertexNormals(); } });
+  const seg = { id: ++segId, name, obj, mat, color, visible: true, opacity: 1 };
+  content.add(obj);
+  state.segments.push(seg);
+  setOpacity(seg, opts.opacity ?? 1);
+  return seg;
+}
+function setOpacity(seg, v) {
+  seg.opacity = v;
+  const t = v < 0.999;
+  if (seg.mat.transparent !== t) seg.mat.needsUpdate = true;
+  seg.mat.transparent = t;
+  seg.mat.opacity = v;
+  seg.mat.depthWrite = !t;
+  seg.obj.traverse(o => { if (o.isMesh) o.renderOrder = t ? 1 : 0; });
+}
+function removeSegment(seg) {
+  content.remove(seg.obj);
+  seg.obj.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+  seg.mat.dispose();
+  state.segments = state.segments.filter(s => s !== seg);
+  if (!state.segments.length) state.centered = false;
+}
+
+/* Bounding-Box aller Segmente in modelRoot-Koordinaten (m) */
+function computeBounds() {
+  const box = new THREE.Box3();
+  content.updateMatrixWorld(true);
+  const inv = content.matrixWorld.clone().invert();
+  const m = new THREE.Matrix4();
+  for (const s of state.segments) s.obj.traverse(o => {
+    if (!o.isMesh) return;
+    o.geometry.computeBoundingBox();
+    box.union(o.geometry.boundingBox.clone().applyMatrix4(m.multiplyMatrices(inv, o.matrixWorld)));
+  });
+  if (box.isEmpty()) return null;
+  return box;   // content-Koordinaten (mm)
+}
+function updateBounds(recenter) {
+  const b = computeBounds();
+  if (!b) return;
+  if (recenter) {
+    const c = b.getCenter(new V3());
+    content.position.copy(c.applyQuaternion(content.quaternion)).multiplyScalar(-MM);
+    state.centered = true;
+  }
+  content.updateMatrix();
+  const rb = b.clone().applyMatrix4(content.matrix);   // modelRoot-Koordinaten (m)
+  rb.getCenter(state.boxCenter);
+  rb.getSize(state.half).multiplyScalar(0.5);
+  updateLandmarkSize();
+}
+
+function fitCamera() {
+  if (renderer.xr.isPresenting) return;
+  const r = Math.max(state.half.length(), 0.01);
+  modelRoot.updateMatrixWorld();
+  const target = state.boxCenter.clone().applyMatrix4(modelRoot.matrixWorld);
+  orbit.target.copy(target);
+  camera.position.copy(target).add(new V3(0, r * 0.7, r * 2.8));
+  camera.near = r / 200; camera.far = r * 200;
+  camera.updateProjectionMatrix();
+  orbit.update();
+}
+
+/* ---------- Datei-Import ---------- */
+async function parseFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  let obj;
+  if (ext === 'stl') obj = new THREE.Mesh(new STLLoader().parse(await file.arrayBuffer()));
+  else if (ext === 'ply') obj = new THREE.Mesh(new PLYLoader().parse(await file.arrayBuffer()));
+  else if (ext === 'obj') obj = new OBJLoader().parse(await file.text());
+  else if (ext === 'glb' || ext === 'gltf') obj = (await new GLTFLoader().parseAsync(await file.arrayBuffer(), '')).scene;
+  else throw new Error('Format nicht unterstützt: .' + ext);
+  // Einheiten-Heuristik: sehr kleine Modelle sind vermutlich in Metern → in mm umrechnen
+  obj.updateMatrixWorld(true);
+  const size = new THREE.Box3().setFromObject(obj).getSize(new V3());
+  if (Math.max(size.x, size.y, size.z) < 0.5) obj.scale.multiplyScalar(1000);
+  return obj;
+}
+async function loadFiles(files) {
+  files = [...files];
+  if (!files.length) return;
+  toast(`Lade ${files.length} Datei(en) …`, 60000);
+  const first = !state.centered;
+  let ok = 0;
+  for (const f of files) {
+    try {
+      const obj = await parseFile(f);
+      addSegment(f.name.replace(/\.[^.]+$/, ''), obj);
+      ok++;
+    } catch (e) { console.error(e); toast(`Fehler bei ${f.name}: ${e.message}`); }
+  }
+  if (ok) {
+    updateBounds(first);
+    if (first) fitCamera();
+    refreshUI();
+    toast(`${ok} Modell(e) geladen`);
+  }
+}
+
+/* ---------- Demo-Fall (Platzhalter, mm) ---------- */
+function loadDemo() {
+  clearAll();
+  const arch = (t, y = 0) => new V3(26 * Math.sin(t * 1.4), y, 30 * Math.cos(t * 1.4) - 14);
+  const curve = (t0, t1, y, n = 40) => new THREE.CatmullRomCurve3(
+    Array.from({ length: n }, (_, k) => arch(t0 + (t1 - t0) * k / (n - 1), y)));
+
+  const bone = new THREE.TubeGeometry(curve(-1.1, 1.1, 0), 160, 7, 28, false);
+  bone.scale(1, 1.9, 1); bone.translate(0, -10, 0);
+
+  const teeth = [];
+  const N = 14, gapIdx = 11;                 // Lücke regio 46 → Implantat
+  let gapT = 0;
+  for (let i = 0; i < N; i++) {
+    const t = -0.95 + i * (1.9 / (N - 1));
+    if (i === gapIdx) { gapT = t; continue; }
+    const at = Math.abs(t), r = at > 0.6 ? 4.3 : at > 0.3 ? 3.5 : 2.7;
+    const g = new THREE.CapsuleGeometry(r, 8, 6, 16);
+    const p = arch(t, 4);
+    g.translate(p.x, p.y, p.z);
+    teeth.push(g);
+  }
+  const teethGeo = mergeGeometries(teeth);
+
+  const ip = arch(gapT, -3.25);
+  const implant = new THREE.CylinderGeometry(2.5, 2.1, 11.5, 40);
+  implant.translate(ip.x, ip.y, ip.z);
+
+  const nerveR = new THREE.TubeGeometry(curve(0.3, 1.1, -13), 80, 1.4, 14, false);
+  const nerveL = new THREE.TubeGeometry(curve(-1.1, -0.3, -13), 80, 1.4, 14, false);
+  const nerve = mergeGeometries([nerveR, nerveL]);
+
+  const guide = new THREE.TubeGeometry(curve(0.25, 1.0, 0), 80, 5.5, 24, false);
+  guide.scale(1, 0.7, 1); guide.translate(0, 12, 0);
+
+  addSegment('Demo – Knochen (UK)', new THREE.Mesh(bone), { color: '#e3d3ad', opacity: 0.55 });
+  addSegment('Demo – Zähne', new THREE.Mesh(teethGeo), { color: '#f4f1ea' });
+  addSegment('Demo – N. alveolaris inf.', new THREE.Mesh(nerve), { color: '#e5484d' });
+  addSegment('Demo – Implantat 46', new THREE.Mesh(implant), { color: '#a9b3c1' });
+  addSegment('Demo – Bohrschablone', new THREE.Mesh(guide), { color: '#4c8dff', opacity: 0.4 });
+  updateBounds(true);
+  fitCamera();
+  refreshUI();
+}
+
+function clearAll() {
+  [...state.segments].forEach(removeSegment);
+  clearLandmarks();
+  content.position.set(0, 0, 0);
+  content.quaternion.identity();
+  state.centered = false;
+  refreshUI();
+}
+
+/* ---------- Ausrichtung ---------- */
+function rotateContent(axis) {
+  // X: −90° → DICOM/LPS (Z oben, Y nach hinten) wird zu Y oben, Front zum Betrachter
+  const m = new THREE.Matrix4().makeRotationAxis(AXES[axis], axis === 'x' ? -Math.PI / 2 : Math.PI / 2);
+  content.applyMatrix4(m);       // dreht um den modelRoot-Ursprung (= Modellmitte)
+  content.updateMatrix();
+  updateBounds(false);
+  fitCamera();
+}
+
+/* ---------- Landmarken ---------- */
+const LM_COLORS = ['#ffcc00', '#00d1ff', '#ff5ad1'];
+const lmMarkers = [];
+function landmarkRadius() {
+  return Math.max(1, state.half.length() / MM * 0.02);   // mm
+}
+function addLandmark(pContent) {
+  if (state.landmarks.length >= 3) return;
+  const i = state.landmarks.length;
+  state.landmarks.push(pContent.clone());
+  const s = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14),
+    new THREE.MeshBasicMaterial({ color: LM_COLORS[i], depthTest: false }));
+  s.renderOrder = 5;
+  s.position.copy(pContent);
+  s.scale.setScalar(landmarkRadius());
+  content.add(s);
+  lmMarkers.push(s);
+  if (state.landmarks.length === 3) state.pickMode = false;
+  refreshUI();
+}
+function updateLandmarkSize() { const r = landmarkRadius(); lmMarkers.forEach(m => m.scale.setScalar(r)); }
+function clearLandmarks() {
+  lmMarkers.forEach(m => { content.remove(m); m.geometry.dispose(); m.material.dispose(); });
+  lmMarkers.length = 0;
+  state.landmarks = [];
+  refreshUI();
+}
+function pickableObjects() { return state.segments.filter(s => s.visible).map(s => s.obj); }
+
+/* ---------- Registrierung (3-Punkt, starr, 1:1) ---------- */
+const regMarkers = [];
+function startRegistration() {
+  if (state.landmarks.length < 3) { state.reg.msg = 'Erst 3 Landmarken am Modell setzen.'; refreshUI(); return; }
+  clearRegMarkers();
+  state.pickMode = false;
+  state.locked = false;
+  [0, 1].forEach(endGrab);
+  state.reg = { active: true, pts: [], msg: '' };
+  showMenu(false);
+  hudRegPrompt();
+  refreshUI();
+}
+function hudRegPrompt() {
+  const k = state.reg.pts.length;
+  hud(`Punkt ${k + 1}/3 am Patienten antippen`, LM_COLORS[k], 0);
+}
+function clearRegMarkers() {
+  regMarkers.forEach(m => { scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
+  regMarkers.length = 0;
+}
+function captureRealPoint(i) {
+  const C = ctrls[i];
+  const p = new V3();
+  const it = C.hand.joints && C.hand.joints['index-finger-tip'];
+  const tt = C.hand.joints && C.hand.joints['thumb-tip'];
+  if (C.c.userData.isHand && it && tt) {
+    p.addVectors(it.getWorldPosition(new V3()), tt.getWorldPosition(new V3())).multiplyScalar(0.5);
+  } else {
+    C.c.updateMatrixWorld();
+    C.c.getWorldPosition(p);
+  }
+  const k = state.reg.pts.length;
+  state.reg.pts.push(p);
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.003, 16, 12),
+    new THREE.MeshBasicMaterial({ color: LM_COLORS[k], depthTest: false }));
+  m.renderOrder = 6; m.position.copy(p); scene.add(m); regMarkers.push(m);
+  if (state.reg.pts.length === 3) solveRegistration(); else hudRegPrompt();
+  refreshUI();
+}
+function frameOf(p) {
+  const x = p[1].clone().sub(p[0]).normalize();
+  const z = new V3().crossVectors(x, p[2].clone().sub(p[0])).normalize();
+  const y = new V3().crossVectors(z, x);
+  return new THREE.Matrix4().makeBasis(x, y, z);
+}
+function centroid(p) { return p.reduce((a, b) => a.add(b), new V3()).multiplyScalar(1 / p.length); }
+function solveRegistration() {
+  content.updateMatrix();
+  const A = state.landmarks.map(l => l.clone().applyMatrix4(content.matrix));   // modelRoot-lokal (m)
+  const B = state.reg.pts;
+  const R = frameOf(B).multiply(frameOf(A).transpose());
+  const q = new THREE.Quaternion().setFromRotationMatrix(R);
+  const t = centroid(B.map(v => v.clone())).sub(centroid(A.map(v => v.clone())).applyQuaternion(q));
+  modelRoot.position.copy(t);
+  modelRoot.quaternion.copy(q);
+  modelRoot.scale.setScalar(1);
+  const err = A.reduce((s, a, k) => s + a.clone().applyQuaternion(q).add(t).distanceTo(B[k]), 0) / 3 / MM;
+  state.reg.active = false;
+  state.locked = true;
+  state.reg.msg = `Registriert (1:1), fixiert. Mittlere Abweichung ${err.toFixed(1)} mm`;
+  hud(`Fixiert · Abweichung ${err.toFixed(1)} mm`, '#3fbf8f', 5000);
+  setTimeout(clearRegMarkers, 4000);
+}
+
+/* ---------- Seitenleiste ---------- */
+function refreshUI() { renderSideList(); renderLandmarks(); syncControls(); panelDirty = true; }
+
+function renderSideList() {
+  const box = $('#segs');
+  box.innerHTML = '';
+  if (!state.segments.length) {
+    box.innerHTML = '<p class="hint">Noch keine Modelle. Dateien hierher ziehen oder „Demo-Fall“ laden.</p>';
+    return;
+  }
+  for (const s of state.segments) {
+    const el = document.createElement('div');
+    el.className = 'seg' + (s.visible ? '' : ' off');
+    el.innerHTML = `
+      <div class="top">
+        <input type="checkbox" ${s.visible ? 'checked' : ''} title="sichtbar">
+        <input type="color" value="${s.color}" title="Farbe">
+        <span class="name" title=""></span>
+        <button class="x" title="entfernen">✕</button>
+      </div>
+      <div class="op">Deckkraft <input type="range" min="0.05" max="1" step="0.05" value="${s.opacity}"></div>`;
+    el.querySelector('.name').textContent = s.name;
+    el.querySelector('.name').title = s.name;
+    el.querySelector('input[type=checkbox]').onchange = e => { s.visible = e.target.checked; s.obj.visible = s.visible; refreshUI(); };
+    el.querySelector('input[type=color]').oninput = e => { s.color = e.target.value; s.mat.color.set(s.color); panelDirty = true; };
+    el.querySelector('input[type=range]').oninput = e => { setOpacity(s, +e.target.value); panelDirty = true; };
+    el.querySelector('.x').onclick = () => { removeSegment(s); if (state.segments.length) updateBounds(false); refreshUI(); };
+    box.appendChild(el);
+  }
+}
+function renderLandmarks() {
+  const ol = $('#lmList');
+  ol.innerHTML = '';
+  ['L1', 'L2', 'L3'].forEach((n, i) => {
+    const li = document.createElement('li');
+    const set = state.landmarks[i];
+    li.innerHTML = `<span style="background:${LM_COLORS[i]}"></span>${set ? 'gesetzt' : 'offen'}`;
+    ol.appendChild(li);
+  });
+}
+function syncControls() {
+  $('#clipOn').textContent = state.clip.on ? 'Schnitt an' : 'Schnitt aus';
+  $('#clipOn').classList.toggle('on', state.clip.on);
+  $('#clipAxis').value = state.clip.axis;
+  $('#clipPos').value = state.clip.frac;
+  $('#pick').classList.toggle('on', state.pickMode);
+  $('#pick').textContent = state.pickMode ? 'Klicken Sie aufs Modell …' : 'Landmarken setzen';
+  $('#pickHint').style.display = state.pickMode && !renderer.xr.isPresenting ? 'block' : 'none';
+}
+
+$('#file').onchange = e => { loadFiles(e.target.files); e.target.value = ''; };
+$('#demo').onclick = loadDemo;
+$('#clear').onclick = clearAll;
+document.querySelectorAll('[data-rot]').forEach(b => b.onclick = () => rotateContent(b.dataset.rot));
+$('#clipOn').onclick = () => { state.clip.on = !state.clip.on; refreshUI(); };
+$('#clipAxis').onchange = e => { state.clip.axis = e.target.value; refreshUI(); };
+$('#clipPos').oninput = e => { state.clip.frac = +e.target.value; panelDirty = true; };
+$('#pick').onclick = () => {
+  if (!state.segments.length) return toast('Erst ein Modell laden.');
+  if (state.landmarks.length >= 3) clearLandmarks();
+  state.pickMode = !state.pickMode; refreshUI();
+};
+$('#lmClear').onclick = () => { clearLandmarks(); state.pickMode = false; refreshUI(); };
+
+/* Drag & Drop */
+let dragDepth = 0;
+addEventListener('dragenter', e => { e.preventDefault(); dragDepth++; $('#drop').classList.add('show'); });
+addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; $('#drop').classList.remove('show'); } });
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('drop', e => { e.preventDefault(); dragDepth = 0; $('#drop').classList.remove('show'); loadFiles(e.dataTransfer.files); });
+
+/* Landmarken am Desktop per Klick */
+const raycaster = new THREE.Raycaster();
+let downAt = null;
+renderer.domElement.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!downAt || !state.pickMode || renderer.xr.isPresenting) return;
+  const moved = Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]);
+  downAt = null;
+  if (moved > 5) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  const ndc = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  const hit = raycaster.intersectObjects(pickableObjects(), true)[0];
+  if (hit) addLandmark(content.worldToLocal(hit.point.clone()));
+});
+
+let toastTimer;
+function toast(msg, ms = 2600) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+/* ---------- XR-Sitzung ---------- */
+let xrMode = null, needPlace = false, needPanelPlace = false;
+async function checkXR() {
+  const info = $('#xrInfo');
+  if (!navigator.xr) {
+    $('#ar').disabled = $('#vr').disabled = true;
+    info.textContent = window.isSecureContext
+      ? 'WebXR ist hier nicht verfügbar. Öffnen Sie die Seite im Browser der Meta Quest 3.'
+      : 'WebXR braucht eine HTTPS-Adresse (oder localhost). Siehe Anleitung.';
+    return;
+  }
+  const [ar, vr] = await Promise.all([
+    navigator.xr.isSessionSupported('immersive-ar').catch(() => false),
+    navigator.xr.isSessionSupported('immersive-vr').catch(() => false),
+  ]);
+  $('#ar').disabled = !ar; $('#vr').disabled = !vr;
+  info.textContent = ar || vr ? 'Brille erkannt – bereit.' : 'Dieses Gerät unterstützt keinen AR/VR-Modus. Öffnen Sie die Seite in der Meta Quest 3.';
+}
+async function startXR(mode) {
+  try {
+    const session = await navigator.xr.requestSession(mode, {
+      requiredFeatures: ['local-floor'], optionalFeatures: ['hand-tracking', 'bounded-floor'],
+    });
+    xrMode = mode;
+    scene.background = mode === 'immersive-vr' ? new THREE.Color(0x1a1f2b) : null;
+    renderer.xr.setReferenceSpaceType('local-floor');
+    await renderer.xr.setSession(session);
+    needPlace = true;
+    state.menu = false;
+    panel.visible = false;
+    ctrls.forEach(C => { C.model.visible = mode === 'immersive-vr'; });   // AR: echte Controller im Passthrough
+    $('#pickHint').style.display = 'none';
+    panelDirty = true;
+    hud('Menü: B/Y-Taste oder Doppel-Pinch', '#e7e9ee', 5000);
+  } catch (e) { console.error(e); toast('Start fehlgeschlagen: ' + e.message, 5000); }
+}
+renderer.xr.addEventListener('sessionend', () => {
+  xrMode = null;
+  scene.background = null;
+  panel.visible = false;
+  state.menu = false;
+  state.locked = false;
+  hudSprite.visible = false;
+  lmMarkers.forEach(m => { m.visible = true; });
+  [0, 1].forEach(endGrab);
+  panelDrag = null;
+  state.reg.active = false;
+  clearRegMarkers();
+  modelRoot.position.set(0, 0, 0); modelRoot.quaternion.identity(); modelRoot.scale.setScalar(1);
+  resize(); fitCamera(); refreshUI();
+});
+$('#ar').onclick = () => startXR('immersive-ar');
+$('#vr').onclick = () => startXR('immersive-vr');
+checkXR();
+
+/* Modell + Menü vor den Nutzer stellen */
+function placeInFront(frame) {
+  const pose = frame && frame.getViewerPose(renderer.xr.getReferenceSpace());
+  if (!pose) return false;
+  const { position: p, orientation: o } = pose.transform;
+  const head = new V3(p.x, p.y, p.z);
+  const f = new V3(0, 0, -1).applyQuaternion(new THREE.Quaternion(o.x, o.y, o.z, o.w));
+  f.y = 0; if (f.lengthSq() < 1e-6) f.set(0, 0, -1); f.normalize();
+  const right = new V3(-f.z, 0, f.x);
+  const s = modelRoot.scale.x;
+  modelRoot.position.copy(head).addScaledVector(f, 0.45).add(new V3(0, -0.12, 0))
+    .sub(state.boxCenter.clone().multiplyScalar(s));
+  modelRoot.quaternion.setFromAxisAngle(new V3(0, 1, 0), Math.atan2(-f.x, -f.z));
+  modelRoot.position.sub(state.boxCenter.clone().multiplyScalar(s).applyQuaternion(modelRoot.quaternion)
+    .sub(state.boxCenter.clone().multiplyScalar(s)));
+  placePanel(frame);
+  return true;
+}
+/* Menü (bzw. Hinweis) vor den Kopf stellen */
+let lastHead = null;   // { head, f, right } aus dem letzten Frame
+function readHead(frame) {
+  const pose = frame && frame.getViewerPose(renderer.xr.getReferenceSpace());
+  if (!pose) return null;
+  const { position: p, orientation: o } = pose.transform;
+  const head = new V3(p.x, p.y, p.z);
+  const f = new V3(0, 0, -1).applyQuaternion(new THREE.Quaternion(o.x, o.y, o.z, o.w));
+  f.y = 0; if (f.lengthSq() < 1e-6) f.set(0, 0, -1); f.normalize();
+  return { head, f, right: new V3(-f.z, 0, f.x) };
+}
+function placePanel(frame) {
+  const h = readHead(frame) || lastHead;
+  if (!h) return false;
+  panel.position.copy(h.head).addScaledVector(h.f, 0.4).addScaledVector(h.right, -0.12).add(new V3(0, -0.1, 0));
+  panel.lookAt(h.head.x, panel.position.y, h.head.z);
+  return true;
+}
+function showMenu(on) {
+  state.menu = on;
+  panel.visible = on && renderer.xr.isPresenting;
+  if (panel.visible) { needPanelPlace = true; panelDirty = true; }
+  if (!on) panelDrag = null;
+}
+
+/* Kurzer Hinweis im Blickfeld (ersetzt das Menü für Rückmeldungen) */
+const hudCanvas = document.createElement('canvas');
+hudCanvas.width = 1024; hudCanvas.height = 128;
+const hudTex = new THREE.CanvasTexture(hudCanvas);
+hudTex.colorSpace = THREE.SRGBColorSpace;
+const hudSprite = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.0375),
+  new THREE.MeshBasicMaterial({ map: hudTex, transparent: true, depthTest: false }));
+hudSprite.renderOrder = 20; hudSprite.visible = false; scene.add(hudSprite);
+let hudUntil = 0;
+function hud(text, color = '#e7e9ee', ms = 3000) {
+  const ctx = hudCanvas.getContext('2d');
+  ctx.clearRect(0, 0, 1024, 128);
+  ctx.font = '600 44px system-ui, sans-serif';
+  const w = Math.min(1000, ctx.measureText(text).width + 64);
+  rr(ctx, (1024 - w) / 2, 14, w, 100, 50); ctx.fillStyle = 'rgba(12,15,20,0.78)'; ctx.fill();
+  ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, 512, 66);
+  hudTex.needsUpdate = true;
+  hudSprite.visible = renderer.xr.isPresenting;
+  hudUntil = ms ? performance.now() + ms : Infinity;
+}
+function updateHud() {
+  if (!hudSprite.visible) return;
+  if (performance.now() > hudUntil) { hudSprite.visible = false; return; }
+  if (!lastHead) return;
+  const { head, f } = lastHead;
+  hudSprite.position.copy(head).addScaledVector(f, 0.55).add(new V3(0, -0.2, 0));
+  hudSprite.lookAt(head);
+}
+
+/* ---------- Controller & Hände ---------- */
+const ctrlFactory = new XRControllerModelFactory();
+const ctrls = [0, 1].map(i => {
+  const c = renderer.xr.getController(i);
+  const line = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([new V3(0, 0, 0), new V3(0, 0, -1)]),
+    new THREE.LineBasicMaterial({ color: 0x7fb2ff, transparent: true, opacity: 0.85 }));
+  line.scale.z = 0.25;
+  c.add(line);
+  const dot = new THREE.Mesh(new THREE.SphereGeometry(0.004, 12, 8), new THREE.MeshBasicMaterial({ color: 0x7fb2ff, depthTest: false }));
+  dot.renderOrder = 7; dot.visible = false; scene.add(dot);
+  c.addEventListener('connected', e => { c.userData.isHand = !!e.data.hand; c.userData.src = e.data; });
+  c.addEventListener('disconnected', () => { endGrab(i); c.userData.src = null; });
+  c.addEventListener('selectstart', () => onSelectStart(i));
+  c.addEventListener('selectend', () => onSelectEnd(i));
+  c.addEventListener('squeezestart', () => startGrab(i));
+  c.addEventListener('squeezeend', () => endGrab(i));
+  scene.add(c);
+  const grip = renderer.xr.getControllerGrip(i);
+  const model = ctrlFactory.createControllerModel(grip);
+  grip.add(model);
+  scene.add(grip);
+  const hand = renderer.xr.getHand(i);
+  scene.add(hand);
+  return { c, grip, hand, line, dot, model, hover: null, kind: null, lastPinch: 0, btn: [] };
+});
+
+function rayFrom(i) {
+  const c = ctrls[i].c;
+  c.updateMatrixWorld();
+  const m = new THREE.Matrix4().extractRotation(c.matrixWorld);
+  raycaster.ray.origin.setFromMatrixPosition(c.matrixWorld);
+  raycaster.ray.direction.set(0, 0, -1).applyMatrix4(m);
+  return raycaster;
+}
+
+/* Greifen (ein Griff = bewegen/drehen, zwei Griffe = skalieren) */
+const grabs = new Set();
+let primary = -1, two = null;
+const grabOffset = new THREE.Matrix4(), tmpM = new THREE.Matrix4(), tmpS = new V3();
+function grabSpace(i) { const C = ctrls[i]; return C.grip.visible ? C.grip : C.c; }
+function setOffset(i) {
+  const g = grabSpace(i); g.updateMatrixWorld(); modelRoot.updateMatrixWorld();
+  grabOffset.copy(g.matrixWorld).invert().multiply(modelRoot.matrixWorld);
+}
+function grabDist() {
+  const [a, b] = [...grabs];
+  return grabSpace(a).getWorldPosition(new V3()).distanceTo(grabSpace(b).getWorldPosition(new V3()));
+}
+function startGrab(i) {
+  if (grabs.has(i)) return;
+  if (state.locked) { hud('Modell ist fixiert – im Menü lösen', '#f2c14e', 2000); return; }
+  grabs.add(i);
+  if (grabs.size === 1) { primary = i; setOffset(i); }
+  else two = { d0: Math.max(grabDist(), 0.01), s0: modelRoot.scale.x };
+}
+function endGrab(i) {
+  if (!grabs.delete(i)) return;
+  two = null;
+  if (grabs.size === 1) { primary = [...grabs][0]; setOffset(primary); } else primary = -1;
+  panelDirty = true;
+}
+function updateGrab() {
+  if (primary < 0) return;
+  const g = grabSpace(primary); g.updateMatrixWorld();
+  tmpM.multiplyMatrices(g.matrixWorld, grabOffset).decompose(modelRoot.position, modelRoot.quaternion, tmpS);
+  let s = tmpS.x;
+  if (two && grabs.size === 2) s = THREE.MathUtils.clamp(two.s0 * grabDist() / two.d0, 0.2, 20);
+  modelRoot.scale.setScalar(s);
+}
+
+let panelDrag = null;
+function onSelectStart(i) {
+  const C = ctrls[i];
+  const hit = panel.visible ? rayFrom(i).intersectObject(panel, false)[0] : null;
+  if (hit) {
+    const b = itemAt(hit.uv);
+    if (b && b.id === 'drag') {
+      C.kind = 'panel';
+      panelDrag = { i, off: C.c.matrixWorld.clone().invert().multiply(panel.matrixWorld) };
+    } else { C.kind = 'button'; if (b) pressPanel(b.id); }
+    return;
+  }
+  if (state.pickMode) {
+    C.kind = 'pick';
+    const h = rayFrom(i).intersectObjects(pickableObjects(), true)[0];
+    if (h) addLandmark(content.worldToLocal(h.point.clone()));
+    return;
+  }
+  if (state.reg.active) { C.kind = 'reg'; captureRealPoint(i); return; }
+  // Hand: Doppel-Pinch ins Leere öffnet/schließt das Menü
+  const now = performance.now();
+  if (C.c.userData.isHand && now - C.lastPinch < 450) {
+    C.lastPinch = 0; C.kind = null; endGrab(i);
+    showMenu(!state.menu);
+    return;
+  }
+  C.lastPinch = now;
+  if (state.locked) { C.kind = null; return; }   // fixiert: Pinches während der Behandlung ignorieren
+  C.kind = 'grab';
+  startGrab(i);
+}
+
+/* Controller-Tasten: B/Y = Menü, A/X = Registrierung starten */
+function pollButtons() {
+  ctrls.forEach(C => {
+    const gp = C.c.userData.src && C.c.userData.src.gamepad;
+    if (!gp || C.c.userData.isHand) return;
+    const pressed = k => !!(gp.buttons[k] && gp.buttons[k].pressed);
+    const edge = k => { const p = pressed(k), was = C.btn[k]; C.btn[k] = p; return p && !was; };
+    if (edge(5)) showMenu(!state.menu);
+    if (edge(4)) {
+      if (state.reg.active) { state.reg.active = false; clearRegMarkers(); hud('Registrierung abgebrochen', '#f2c14e', 2000); refreshUI(); }
+      else if (state.landmarks.length < 3) hud('Erst 3 Landmarken am Modell setzen', '#f2c14e', 3000);
+      else startRegistration();
+    }
+  });
+}
+function onSelectEnd(i) {
+  const C = ctrls[i];
+  if (C.kind === 'grab') endGrab(i);
+  if (C.kind === 'panel') panelDrag = null;
+  C.kind = null;
+}
+
+/* ---------- Menü in der Brille (Canvas-Textur) ---------- */
+const PW = 1024;
+let PH = 900, panelItems = [], panelDirty = true;
+const pcanvas = document.createElement('canvas');
+pcanvas.width = PW; pcanvas.height = PH;
+const ptex = new THREE.CanvasTexture(pcanvas);
+ptex.colorSpace = THREE.SRGBColorSpace;
+const panel = new THREE.Mesh(new THREE.PlaneGeometry(1, 1),
+  new THREE.MeshBasicMaterial({ map: ptex, transparent: true, side: THREE.DoubleSide }));
+panel.renderOrder = 10;
+panel.visible = false;
+scene.add(panel);
+const PANEL_W = 0.34;
+
+function layoutPanel() {
+  const L = [], X0 = 28, W = PW - 56;
+  let y = 0;
+  L.push({ id: 'drag', kind: 'header', x: 0, y: 0, w: PW, h: 96 });
+  y = 116;
+  const label = t => { L.push({ kind: 'label', x: X0, y, text: t }); y += 44; };
+  const row = defs => {
+    const gap = 12, w = (W - gap * (defs.length - 1)) / defs.length;
+    defs.forEach((d, k) => L.push({ id: d[0], kind: 'btn', label: d[1], active: !!d[2], disabled: !!d[3], x: X0 + k * (w + gap), y, w, h: 66 }));
+    y += 78;
+  };
+  label('Modelle');
+  if (!state.segments.length) { L.push({ kind: 'text', x: X0, y: y + 10, text: 'Keine Modelle geladen' }); y += 60; }
+  state.segments.forEach((s, i) => {
+    L.push({ id: 'vis:' + i, kind: 'seg', seg: s, x: X0, y, w: W - 200, h: 66 });
+    L.push({ id: 'op:' + i, kind: 'btn', label: Math.round(s.opacity * 100) + ' %', x: X0 + W - 188, y, w: 188, h: 66 });
+    y += 78;
+  });
+  y += 6; label('Schnittebene');
+  row([['clip', state.clip.on ? 'Schnitt an' : 'Schnitt aus', state.clip.on],
+       ['axis', 'Achse ' + state.clip.axis.toUpperCase()], ['clip-', '◀'], ['clip+', '▶']]);
+  label('Größe & Position');
+  const sc = modelRoot.scale.x;
+  row([['sc1', '1:1', Math.abs(sc - 1) < 0.01], ['sc2', '×2', Math.abs(sc - 2) < 0.01], ['sc4', '×4', Math.abs(sc - 4) < 0.01], ['place', 'Vor mich']]);
+  label('Registrierung');
+  const n = state.landmarks.length;
+  if (state.reg.active) {
+    L.push({ kind: 'text', x: X0, y: y + 12, text: `Punkt ${state.reg.pts.length + 1}/3 am Phantom/Patienten antippen`, color: LM_COLORS[state.reg.pts.length] });
+    y += 56;
+    row([['regx', 'Abbrechen']]);
+  } else {
+    row([['lm', state.pickMode ? 'Aufs Modell zeigen …' : `Landmarken ${n}/3`, state.pickMode],
+         ['reg', 'Registrieren', false, n < 3]]);
+  }
+  if (state.reg.msg) { L.push({ kind: 'text', x: X0, y: y + 4, text: state.reg.msg, small: true }); y += 50; }
+  y += 8;
+  row([['lock', state.locked ? 'Fixiert – lösen' : 'Fixieren', state.locked], ['close', 'Menü schließen']]);
+  row([['exit', 'Brille verlassen']]);
+  return { L, H: y + 20 };
+}
+
+function rr(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function fitText(ctx, t, maxW) {
+  if (ctx.measureText(t).width <= maxW) return t;
+  while (t.length > 1 && ctx.measureText(t + '…').width > maxW) t = t.slice(0, -1);
+  return t + '…';
+}
+function drawPanel() {
+  const { L, H } = layoutPanel();
+  panelItems = L;
+  if (H !== PH) { PH = H; pcanvas.height = PH; ptex.dispose(); }
+  const ctx = pcanvas.getContext('2d');
+  ctx.clearRect(0, 0, PW, PH);
+  rr(ctx, 0, 0, PW, PH, 36); ctx.fillStyle = 'rgba(16,19,26,0.93)'; ctx.fill();
+  ctx.lineWidth = 3; ctx.strokeStyle = '#2f3644'; ctx.stroke();
+  const hovered = new Set(ctrls.map(C => C.hover).filter(Boolean));
+  ctx.textBaseline = 'middle';
+  for (const it of L) {
+    const hov = it.id && hovered.has(it.id);
+    if (it.kind === 'header') {
+      rr(ctx, 0, 0, PW, it.h, [36, 36, 0, 0]); ctx.fillStyle = hov ? '#26324a' : '#1c2230'; ctx.fill();
+      ctx.fillStyle = '#e7e9ee'; ctx.font = '700 38px system-ui, sans-serif'; ctx.fillText('Dental XR Viewer', 32, 48);
+      ctx.fillStyle = '#9aa3b2'; ctx.font = '500 24px system-ui, sans-serif'; ctx.textAlign = 'right';
+      ctx.fillText('⠿ hier greifen zum Verschieben', PW - 32, 50); ctx.textAlign = 'left';
+    } else if (it.kind === 'label') {
+      ctx.fillStyle = '#9aa3b2'; ctx.font = '600 24px system-ui, sans-serif'; ctx.fillText(it.text.toUpperCase(), it.x + 4, it.y + 18);
+    } else if (it.kind === 'text') {
+      ctx.fillStyle = it.color || '#e7e9ee'; ctx.font = (it.small ? '500 26px' : '600 30px') + ' system-ui, sans-serif';
+      ctx.fillText(fitText(ctx, it.text, PW - 60), it.x + 4, it.y + 18);
+    } else if (it.kind === 'seg') {
+      const s = it.seg;
+      rr(ctx, it.x, it.y, it.w, it.h, 14); ctx.fillStyle = hov ? '#33405a' : '#232a37'; ctx.fill();
+      ctx.beginPath(); ctx.arc(it.x + 38, it.y + it.h / 2, 15, 0, Math.PI * 2);
+      if (s.visible) { ctx.fillStyle = s.color; ctx.fill(); } else { ctx.lineWidth = 4; ctx.strokeStyle = s.color; ctx.stroke(); }
+      ctx.fillStyle = s.visible ? '#e7e9ee' : '#6b7383'; ctx.font = '600 30px system-ui, sans-serif';
+      ctx.fillText(fitText(ctx, s.name, it.w - 170), it.x + 70, it.y + it.h / 2 + 1);
+      ctx.fillStyle = '#9aa3b2'; ctx.font = '500 24px system-ui, sans-serif'; ctx.textAlign = 'right';
+      ctx.fillText(s.visible ? 'sichtbar' : 'aus', it.x + it.w - 20, it.y + it.h / 2 + 1); ctx.textAlign = 'left';
+    } else if (it.kind === 'btn') {
+      rr(ctx, it.x, it.y, it.w, it.h, 14);
+      ctx.fillStyle = it.active ? '#4c8dff' : hov && !it.disabled ? '#33405a' : '#232a37'; ctx.fill();
+      ctx.globalAlpha = it.disabled ? 0.4 : 1;
+      ctx.fillStyle = '#ffffff'; ctx.font = '600 30px system-ui, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(fitText(ctx, it.label, it.w - 20), it.x + it.w / 2, it.y + it.h / 2 + 1);
+      ctx.textAlign = 'left'; ctx.globalAlpha = 1;
+    }
+  }
+  ptex.needsUpdate = true;
+  if (!panelDrag) panel.scale.set(PANEL_W, PANEL_W * PH / PW, 1);
+  panelDirty = false;
+}
+function itemAt(uv) {
+  if (!uv) return null;
+  const x = uv.x * PW, y = (1 - uv.y) * PH;
+  return panelItems.find(it => it.id && x >= it.x && x <= it.x + it.w && y >= it.y && y <= it.y + it.h &&
+    !(it.kind === 'btn' && it.disabled)) || null;
+}
+function pressPanel(id) {
+  const [cmd, arg] = id.split(':');
+  const s = state.segments[+arg];
+  switch (cmd) {
+    case 'vis': s.visible = !s.visible; s.obj.visible = s.visible; break;
+    case 'op': setOpacity(s, s.opacity > 0.9 ? 0.6 : s.opacity > 0.45 ? 0.3 : 1); break;
+    case 'clip': state.clip.on = !state.clip.on; break;
+    case 'axis': state.clip.axis = { x: 'y', y: 'z', z: 'x' }[state.clip.axis]; break;
+    case 'clip-': state.clip.on = true; state.clip.frac = Math.max(-1, +(state.clip.frac - 0.1).toFixed(2)); break;
+    case 'clip+': state.clip.on = true; state.clip.frac = Math.min(1, +(state.clip.frac + 0.1).toFixed(2)); break;
+    case 'sc1': case 'sc2': case 'sc4': modelRoot.scale.setScalar(+cmd.slice(2)); needPlace = true; break;
+    case 'place': needPlace = true; break;
+    case 'lm':
+      if (state.landmarks.length >= 3) clearLandmarks();
+      state.pickMode = !state.pickMode; state.reg.msg = ''; break;
+    case 'reg': startRegistration(); break;
+    case 'regx': state.reg.active = false; state.reg.msg = ''; clearRegMarkers(); hudSprite.visible = false; break;
+    case 'lock': state.locked = !state.locked; if (state.locked) [0, 1].forEach(endGrab); break;
+    case 'close': showMenu(false); break;
+    case 'exit': renderer.xr.getSession()?.end(); break;
+  }
+  refreshUI();
+}
+
+/* ---------- Render-Schleife ---------- */
+renderer.setAnimationLoop((time, frame) => {
+  if (renderer.xr.isPresenting) {
+    lastHead = readHead(frame) || lastHead;
+    if (needPlace && placeInFront(frame)) { needPlace = false; panelDirty = true; }
+    if (needPanelPlace && placePanel(frame)) needPanelPlace = false;
+    pollButtons();
+    updateGrab();
+    updateHud();
+    const showRays = panel.visible || state.pickMode;
+    ctrls.forEach(C => { C.line.visible = showRays; if (!showRays) C.dot.visible = false; });
+    lmMarkers.forEach(m => { m.visible = state.pickMode || state.reg.active || state.menu; });
+    if (panelDrag) {
+      const c = ctrls[panelDrag.i].c; c.updateMatrixWorld();
+      tmpM.multiplyMatrices(c.matrixWorld, panelDrag.off).decompose(panel.position, panel.quaternion, panel.scale);
+    }
+    let hoverChanged = false;
+    ctrls.forEach((C, i) => {
+      const hit = C.c.visible && panel.visible ? rayFrom(i).intersectObject(panel, false)[0] : null;
+      const id = hit ? itemAt(hit.uv)?.id || null : null;
+      if (id !== C.hover) { C.hover = id; hoverChanged = true; }
+      C.line.scale.z = hit ? hit.distance : 0.25;
+      C.dot.visible = !!hit;
+      if (hit) C.dot.position.copy(hit.point);
+    });
+    if (hoverChanged) panelDirty = true;
+    if (panelDirty) drawPanel();
+  } else {
+    orbit.update();
+  }
+  updateClip();
+  renderer.render(scene, camera);
+});
+
+loadDemo();
+</script>
+</body>
+</html>
