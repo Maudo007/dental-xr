@@ -92,3 +92,7 @@ The “Start AR/VR” buttons are only active in the headset.
 - Several cases as a list that students open via link
 - Shared session: instructor and students see the same model
 - Vision Pro: should run in principle (Safari, VR mode), not yet tested
+
+---
+
+© 2026 Marcus Engelschalk
