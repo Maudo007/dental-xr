@@ -95,4 +95,5 @@ The “Start AR/VR” buttons are only active in the headset.
 
 ---
 
-© 2026 Marcus Engelschalk
+© 2026 Marcus Engelschalk. All rights reserved.
+The viewer may be used via the website above for teaching and research. Copying, modifying, redistributing or commercial use of the code requires written permission. See [LICENSE](LICENSE).

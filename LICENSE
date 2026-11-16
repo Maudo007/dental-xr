@@ -1,0 +1,31 @@
+Copyright (c) 2026 Marcus Engelschalk. All rights reserved.
+
+Dental XR Viewer
+
+This software, including its source code, design, user interface and
+documentation, is the intellectual property of Marcus Engelschalk.
+
+PERMITTED
+  - Using the viewer through the official website
+    (https://maudo007.github.io/dental-xr/) for teaching, research,
+    phantom courses and patient education.
+  - Viewing the source code in this repository.
+
+NOT PERMITTED without prior written permission of the copyright holder
+  - Copying, downloading for redistribution, or republishing the source
+    code, in whole or in part.
+  - Modifying the software or creating derivative works.
+  - Hosting the software on other servers or websites.
+  - Any commercial use, including selling, licensing or integrating the
+    software into other products or services.
+
+Publishing the source code on GitHub does not grant any license beyond
+the uses listed above. Requests for further permissions can be sent to
+the copyright holder via GitHub (https://github.com/Maudo007).
+
+DISCLAIMER
+This software is a research and teaching prototype. It is not a medical
+device and must not be used for diagnosis, surgical navigation or any
+other clinical decision. It is provided "as is", without warranty of any
+kind. To the extent permitted by law, the copyright holder is not liable
+for any damages arising from its use.
