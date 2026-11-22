@@ -70,8 +70,8 @@ Short hints (e.g. “Tap point 2/3 on the patient”) briefly appear at the bott
 1. Set 3 landmarks on the model on screen (see above). Alternatively, use “Landmarks” in the headset menu.
 2. In the headset press **A/X** or choose **“Register”** in the menu. The menu then disappears.
 3. Tap the same 3 points **in the same order** on the phantom or patient:
-   - *Hand:* pinch exactly at the point
-   - *Controller:* touch the point with the tip of the controller and pull the trigger
+   - *Hand:* pinch exactly at the point. A small cyan dot between your fingertips shows where the point will be saved.
+   - *Controller:* during registration a thin **virtual needle** (6 cm) sticks out of the controller. Touch the point with the **cyan needle tip** and pull the trigger. A short vibration confirms the point.
 4. The model jumps onto the patient at original size (1:1) and is **locked**. Grabbing is then disabled
    so it cannot shift during treatment. The mean deviation of the 3 points is briefly shown in mm.
 5. Unlock via the menu (“Locked – unlock”). You can re-register at any time with A/X.

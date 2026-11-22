@@ -114,7 +114,7 @@
       <li>In the headset you see <b>only the model</b>. No menu, no rays.</li>
       <li><b>Menu on/off:</b> controller button B or Y · hand: double pinch in empty space.</li>
       <li><b>Grab, move, rotate the model:</b> grip button or trigger (controller) · pinch (hand). Pull apart with two hands = scale.</li>
-      <li><b>Register:</b> controller button A or X (or “Register” in the menu). Then tap the 3 landmarks on the patient in the same order: hand = pinch exactly at the point, controller = touch the point with the controller tip and pull the trigger. A hint in your view shows which point is next.</li>
+      <li><b>Register:</b> controller button A or X (or “Register” in the menu). Then tap the 3 landmarks on the patient in the same order: hand = pinch exactly at the point, controller = touch the point with the cyan tip of the virtual needle and pull the trigger. A hint in your view shows which point is next.</li>
       <li>After registration the model is <b>locked</b>. Grabbing is disabled so it cannot shift during treatment. Unlock it via the menu.</li>
     </ul>
   </details>
@@ -443,15 +443,9 @@ function clearRegMarkers() {
 }
 function captureRealPoint(i) {
   const C = ctrls[i];
-  const p = new V3();
-  const it = C.hand.joints && C.hand.joints['index-finger-tip'];
-  const tt = C.hand.joints && C.hand.joints['thumb-tip'];
-  if (C.c.userData.isHand && it && tt) {
-    p.addVectors(it.getWorldPosition(new V3()), tt.getWorldPosition(new V3())).multiplyScalar(0.5);
-  } else {
-    C.c.updateMatrixWorld();
-    C.c.getWorldPosition(p);
-  }
+  const p = capturePoint(C);
+  if (!p) return;
+  pulse(C);
   const k = state.reg.pts.length;
   state.reg.pts.push(p);
   const m = new THREE.Mesh(new THREE.SphereGeometry(0.003, 16, 12),
@@ -459,6 +453,20 @@ function captureRealPoint(i) {
   m.renderOrder = 6; m.position.copy(p); scene.add(m); regMarkers.push(m);
   if (state.reg.pts.length === 3) solveRegistration(); else hudRegPrompt();
   refreshUI();
+}
+function pinchPoint(C) {
+  const it = C.hand.joints && C.hand.joints['index-finger-tip'];
+  const tt = C.hand.joints && C.hand.joints['thumb-tip'];
+  if (!it || !tt) return null;
+  return new V3().addVectors(it.getWorldPosition(new V3()), tt.getWorldPosition(new V3())).multiplyScalar(0.5);
+}
+function capturePoint(C) {
+  if (C.c.userData.isHand) return pinchPoint(C);
+  C.c.updateMatrixWorld();
+  return C.c.localToWorld(new V3(0, 0, -NEEDLE_LEN));
+}
+function pulse(C) {
+  try { C.c.userData.src?.gamepad?.hapticActuators?.[0]?.pulse(0.6, 60); } catch (e) {}
 }
 function frameOf(p) {
   const x = p[1].clone().sub(p[0]).normalize();
@@ -621,6 +629,7 @@ renderer.xr.addEventListener('sessionend', () => {
   state.menu = false;
   state.locked = false;
   hudSprite.visible = false;
+  ctrls.forEach(C => { C.needle.visible = false; C.handTip.visible = false; });
   lmMarkers.forEach(m => { m.visible = true; });
   [0, 1].forEach(endGrab);
   panelDrag = null;
@@ -708,6 +717,7 @@ function updateHud() {
 
 /* ---------- Controller & Hände ---------- */
 const ctrlFactory = new XRControllerModelFactory();
+const NEEDLE_LEN = 0.06; /* virtuelle Sondenspitze, 6 cm vor dem Controller */
 const ctrls = [0, 1].map(i => {
   const c = renderer.xr.getController(i);
   const line = new THREE.Line(
@@ -717,6 +727,17 @@ const ctrls = [0, 1].map(i => {
   c.add(line);
   const dot = new THREE.Mesh(new THREE.SphereGeometry(0.004, 12, 8), new THREE.MeshBasicMaterial({ color: 0x7fb2ff, depthTest: false }));
   dot.renderOrder = 7; dot.visible = false; scene.add(dot);
+  const needle = new THREE.Group();
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.0007, 0.0015, NEEDLE_LEN, 10),
+    new THREE.MeshBasicMaterial({ color: 0xd8dee9, transparent: true, opacity: 0.9 }));
+  shaft.rotation.x = Math.PI / 2; shaft.position.z = -NEEDLE_LEN / 2;
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.0018, 14, 10),
+    new THREE.MeshBasicMaterial({ color: 0x00e5ff, depthTest: false }));
+  tip.renderOrder = 8; tip.position.z = -NEEDLE_LEN;
+  needle.add(shaft, tip); needle.visible = false; c.add(needle);
+  const handTip = new THREE.Mesh(new THREE.SphereGeometry(0.0018, 14, 10),
+    new THREE.MeshBasicMaterial({ color: 0x00e5ff, depthTest: false }));
+  handTip.renderOrder = 8; handTip.visible = false; scene.add(handTip);
   c.addEventListener('connected', e => { c.userData.isHand = !!e.data.hand; c.userData.src = e.data; });
   c.addEventListener('disconnected', () => { endGrab(i); c.userData.src = null; });
   c.addEventListener('selectstart', () => onSelectStart(i));
@@ -730,7 +751,7 @@ const ctrls = [0, 1].map(i => {
   scene.add(grip);
   const hand = renderer.xr.getHand(i);
   scene.add(hand);
-  return { c, grip, hand, line, dot, model, hover: null, kind: null, lastPinch: 0, btn: [] };
+  return { c, grip, hand, line, dot, needle, handTip, model, hover: null, kind: null, lastPinch: 0, btn: [] };
 });
 
 function rayFrom(i) {
@@ -983,6 +1004,13 @@ renderer.setAnimationLoop((time, frame) => {
     const showRays = panel.visible || state.pickMode;
     ctrls.forEach(C => { C.line.visible = showRays; if (!showRays) C.dot.visible = false; });
     lmMarkers.forEach(m => { m.visible = state.pickMode || state.reg.active || state.menu; });
+    ctrls.forEach(C => {
+      const isHand = !!C.c.userData.isHand, src = !!C.c.userData.src;
+      C.needle.visible = state.reg.active && src && !isHand;
+      const hp = state.reg.active && src && isHand ? pinchPoint(C) : null;
+      C.handTip.visible = !!hp;
+      if (hp) C.handTip.position.copy(hp);
+    });
     if (panelDrag) {
       const c = ctrls[panelDrag.i].c; c.updateMatrixWorld();
       tmpM.multiplyMatrices(c.matrixWorld, panelDrag.off).decompose(panel.position, panel.quaternion, panel.scale);
