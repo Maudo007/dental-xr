@@ -395,7 +395,7 @@ function rotateContent(axis) {
 const LM_COLORS = ['#ffcc00', '#00d1ff', '#ff5ad1'];
 const lmMarkers = [];
 function landmarkRadius() {
-  return Math.max(1, state.half.length() / MM * 0.02);   // mm
+  return Math.max(0.5, state.half.length() / MM * 0.01);   // mm
 }
 function addLandmark(pContent) {
   if (state.landmarks.length >= 3) return;
@@ -448,7 +448,7 @@ function captureRealPoint(i) {
   pulse(C);
   const k = state.reg.pts.length;
   state.reg.pts.push(p);
-  const m = new THREE.Mesh(new THREE.SphereGeometry(0.003, 16, 12),
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.0015, 16, 12),
     new THREE.MeshBasicMaterial({ color: LM_COLORS[k], depthTest: false }));
   m.renderOrder = 6; m.position.copy(p); scene.add(m); regMarkers.push(m);
   if (state.reg.pts.length === 3) solveRegistration(); else hudRegPrompt();
@@ -717,7 +717,7 @@ function updateHud() {
 
 /* ---------- Controller & Hände ---------- */
 const ctrlFactory = new XRControllerModelFactory();
-const NEEDLE_LEN = 0.06; /* virtuelle Sondenspitze, 6 cm vor dem Controller */
+const NEEDLE_LEN = 0.10; /* virtuelle Sondenspitze, 10 cm vor dem Controller */
 const ctrls = [0, 1].map(i => {
   const c = renderer.xr.getController(i);
   const line = new THREE.Line(
@@ -728,14 +728,14 @@ const ctrls = [0, 1].map(i => {
   const dot = new THREE.Mesh(new THREE.SphereGeometry(0.004, 12, 8), new THREE.MeshBasicMaterial({ color: 0x7fb2ff, depthTest: false }));
   dot.renderOrder = 7; dot.visible = false; scene.add(dot);
   const needle = new THREE.Group();
-  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.0007, 0.0015, NEEDLE_LEN, 10),
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.0015, 0.0004, NEEDLE_LEN, 10),
     new THREE.MeshBasicMaterial({ color: 0xd8dee9, transparent: true, opacity: 0.9 }));
   shaft.rotation.x = Math.PI / 2; shaft.position.z = -NEEDLE_LEN / 2;
-  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.0018, 14, 10),
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.0009, 14, 10),
     new THREE.MeshBasicMaterial({ color: 0x00e5ff, depthTest: false }));
   tip.renderOrder = 8; tip.position.z = -NEEDLE_LEN;
   needle.add(shaft, tip); needle.visible = false; c.add(needle);
-  const handTip = new THREE.Mesh(new THREE.SphereGeometry(0.0018, 14, 10),
+  const handTip = new THREE.Mesh(new THREE.SphereGeometry(0.0009, 14, 10),
     new THREE.MeshBasicMaterial({ color: 0x00e5ff, depthTest: false }));
   handTip.renderOrder = 8; handTip.visible = false; scene.add(handTip);
   c.addEventListener('connected', e => { c.userData.isHand = !!e.data.hand; c.userData.src = e.data; });
