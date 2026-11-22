@@ -76,7 +76,23 @@ Short hints (e.g. “Tap point 2/3 on the patient”) briefly appear at the bott
    so it cannot shift during treatment. The mean deviation of the 3 points is briefly shown in mm.
 5. Unlock via the menu (“Locked – unlock”). You can re-register at any time with A/X.
 
-**Limitations:** The model is anchored in the **room**, not to the head. If the head moves, you need to register again.
+### Moving the phantom: follow controller
+
+The headset cannot see the real model, but it tracks its controllers very precisely. To let the virtual model follow a moving phantom:
+
+1. **Fix one controller rigidly** to the phantom or its base (clamp, Velcro or a 3D-printed holder). It must not wobble.
+2. **Register** as usual with the other controller or your hands (sections above).
+3. Open the menu and choose **“Follow controller → Left”** or **“Right”**: the side of the *mounted* controller.
+4. Move or tilt the phantom: the model follows in real time.
+
+- The mounted controller ignores all buttons, so bumping it does nothing. Use the other controller or your hands.
+- To correct the fit, register again (A/X). Following pauses during registration and continues afterwards with the new fit.
+- If the mounted controller loses tracking (covered, out of view), the model stays put and a hint appears.
+- Turn it off with **“Follow controller → Off”**.
+- Phantom use only: a controller (≈150 g) is too heavy to fix to a patient.
+- Not yet tested: the Quest may treat a controller that stays motionless for a long time as “set down” and switch to hand tracking. If the model stops following, this is the likely cause.
+
+**Limitations:** Without the follow controller the model is anchored in the **room**. If the patient or phantom moves, you need to register again.
 The accuracy of the Quest 3 is in the millimeter-to-centimeter range.
 The viewer is therefore intended for **teaching, phantom courses and patient education**. It is not suitable for navigation,
 and clinical use is subject to MDR requirements and ethics approval.

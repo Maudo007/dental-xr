@@ -116,6 +116,7 @@
       <li><b>Grab, move, rotate the model:</b> grip button or trigger (controller) · pinch (hand). Pull apart with two hands = scale.</li>
       <li><b>Register:</b> controller button A or X (or “Register” in the menu). Then tap the 3 landmarks on the patient in the same order: hand = pinch exactly at the point, controller = touch the point with the cyan tip of the virtual needle and pull the trigger. A hint in your view shows which point is next.</li>
       <li>After registration the model is <b>locked</b>. Grabbing is disabled so it cannot shift during treatment. Unlock it via the menu.</li>
+      <li><b>Follow controller (phantom):</b> fix one controller firmly to the phantom, register, then choose “Follow controller → Left/Right” in the menu. The model now moves with the phantom. The mounted controller ignores all buttons.</li>
     </ul>
   </details>
   <p class="credit">© 2026 Marcus Engelschalk · All rights reserved</p>
@@ -176,6 +177,7 @@ const state = {
   reg: { active: false, pts: [], msg: '' },
   menu: false,                         // Menü in der Brille sichtbar?
   locked: false,                       // Modell fixiert (nicht greifbar)
+  follow: null,                        // 'left' | 'right': Modell folgt einem fest montierten Controller
 };
 let segId = 0;
 
@@ -628,6 +630,7 @@ renderer.xr.addEventListener('sessionend', () => {
   panel.visible = false;
   state.menu = false;
   state.locked = false;
+  state.follow = null; followLast = null;
   hudSprite.visible = false;
   ctrls.forEach(C => { C.needle.visible = false; C.handTip.visible = false; });
   lmMarkers.forEach(m => { m.visible = true; });
@@ -777,7 +780,7 @@ function grabDist() {
   return grabSpace(a).getWorldPosition(new V3()).distanceTo(grabSpace(b).getWorldPosition(new V3()));
 }
 function startGrab(i) {
-  if (grabs.has(i)) return;
+  if (grabs.has(i) || isFollowCtrl(ctrls[i])) return;
   if (state.locked) { hud('Model is locked – unlock in menu', '#f2c14e', 2000); return; }
   grabs.add(i);
   if (grabs.size === 1) { primary = i; setOffset(i); }
@@ -799,8 +802,46 @@ function updateGrab() {
 }
 
 let panelDrag = null;
+/* Modell folgt einem fest am Phantom montierten Controller */
+const followOff = new THREE.Matrix4();
+let followLast = null, followLost = false;
+function isFollowCtrl(C) {
+  const src = C.c.userData.src;
+  return !!(state.follow && src && !C.c.userData.isHand && src.handedness === state.follow);
+}
+function setFollow(side) {
+  state.follow = side;
+  followLast = null; followLost = false;
+  if (!side) { hud('Follow controller off', '#9aa3b2', 2000); return; }
+  const C = ctrls.find(isFollowCtrl);
+  hud(C ? `Model follows ${side} controller` : `No ${side} controller found`, C ? '#3fbf8f' : '#f2c14e', 3000);
+}
+function matNear(a, b) {
+  for (let k = 0; k < 16; k++) if (Math.abs(a.elements[k] - b.elements[k]) > 1e-5) return false;
+  return true;
+}
+function updateFollow() {
+  if (!state.follow) return;
+  const C = ctrls.find(isFollowCtrl);
+  const tracked = !!(C && C.grip.visible);
+  if (!tracked) {
+    if (!followLost) { followLost = true; hud('Follow controller not tracked', '#f2c14e', 3000); }
+    followLast = null; return;
+  }
+  followLost = false;
+  if (state.reg.active || grabs.size) { followLast = null; return; }   // pausieren, danach neu ankoppeln
+  C.grip.updateMatrixWorld(); modelRoot.updateMatrix();
+  // Wurde das Modell anders verändert (Registrierung, Greifen, Größe …)? Dann neu ankoppeln.
+  if (!followLast || !matNear(modelRoot.matrix, followLast))
+    followOff.copy(C.grip.matrixWorld).invert().multiply(modelRoot.matrix);
+  tmpM.multiplyMatrices(C.grip.matrixWorld, followOff).decompose(modelRoot.position, modelRoot.quaternion, modelRoot.scale);
+  modelRoot.updateMatrix();
+  followLast = modelRoot.matrix.clone();
+}
+
 function onSelectStart(i) {
   const C = ctrls[i];
+  if (isFollowCtrl(C)) { C.kind = null; return; }   // montierter Controller: Eingaben ignorieren
   const hit = panel.visible ? rayFrom(i).intersectObject(panel, false)[0] : null;
   if (hit) {
     const b = itemAt(hit.uv);
@@ -834,7 +875,7 @@ function onSelectStart(i) {
 function pollButtons() {
   ctrls.forEach(C => {
     const gp = C.c.userData.src && C.c.userData.src.gamepad;
-    if (!gp || C.c.userData.isHand) return;
+    if (!gp || C.c.userData.isHand || isFollowCtrl(C)) return;
     const pressed = k => !!(gp.buttons[k] && gp.buttons[k].pressed);
     const edge = k => { const p = pressed(k), was = C.btn[k]; C.btn[k] = p; return p && !was; };
     if (edge(5)) showMenu(!state.menu);
@@ -902,6 +943,8 @@ function layoutPanel() {
   }
   if (state.reg.msg) { L.push({ kind: 'text', x: X0, y: y + 4, text: state.reg.msg, small: true }); y += 50; }
   y += 8;
+  label('Follow controller (mounted on phantom)');
+  row([['fol:left', 'Left', state.follow === 'left'], ['fol:right', 'Right', state.follow === 'right'], ['fol:off', 'Off', !state.follow]]);
   row([['lock', state.locked ? 'Locked – unlock' : 'Lock', state.locked], ['close', 'Close menu']]);
   row([['exit', 'Exit headset']]);
   L.push({ kind: 'credit', x: PW / 2, y: y + 2, text: '© 2026 Marcus Engelschalk' });
@@ -985,6 +1028,7 @@ function pressPanel(id) {
       state.pickMode = !state.pickMode; state.reg.msg = ''; break;
     case 'reg': startRegistration(); break;
     case 'regx': state.reg.active = false; state.reg.msg = ''; clearRegMarkers(); hudSprite.visible = false; break;
+    case 'fol': setFollow(arg === 'off' ? null : arg); break;
     case 'lock': state.locked = !state.locked; if (state.locked) [0, 1].forEach(endGrab); break;
     case 'close': showMenu(false); break;
     case 'exit': renderer.xr.getSession()?.end(); break;
@@ -1000,6 +1044,7 @@ renderer.setAnimationLoop((time, frame) => {
     if (needPanelPlace && placePanel(frame)) needPanelPlace = false;
     pollButtons();
     updateGrab();
+    updateFollow();
     updateHud();
     const showRays = panel.visible || state.pickMode;
     ctrls.forEach(C => { C.line.visible = showRays; if (!showRays) C.dot.visible = false; });
