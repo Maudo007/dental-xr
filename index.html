@@ -71,7 +71,7 @@
 
   <h2>Models</h2>
   <div class="row">
-    <label class="btn primary">Load files<input id="file" type="file" multiple accept=".stl,.ply,.obj,.glb,.gltf" hidden></label>
+    <label class="btn primary">Load files<input id="file" type="file" multiple accept=".stl,.ply,.obj,.glb,.gltf,.dxv" hidden></label>
     <button id="demo">Demo case</button>
     <button id="clear">Clear</button>
   </div>
@@ -92,6 +92,18 @@
     <select id="clipAxis"><option value="x">Axis X</option><option value="y" selected>Axis Y</option><option value="z">Axis Z</option></select>
   </div>
   <input id="clipPos" type="range" min="-1" max="1" step="0.01" value="0" style="margin-top:8px">
+
+  <h2>DVT slice (test)</h2>
+  <p class="hint" style="margin-top:0">Load a converted DVT (<b>.dxv</b>) together with the STLs of the same case. The slice shows the original grey values at the correct position.</p>
+  <div class="row">
+    <select id="slAxis"><option value="off">Slice off</option><option value="z">Axial</option><option value="y">Coronal</option><option value="x">Sagittal</option></select>
+    <select id="slCut"><option value="off">Models not cut</option><option value="+">Cut models: side A</option><option value="-">Cut models: side B</option></select>
+  </div>
+  <label class="hint" style="display:block">Position<input id="slPos" type="range" min="0" max="1" step="0.001" value="0.5"></label>
+  <label class="hint" style="display:block">Window centre<input id="slC" type="range" min="-500" max="2500" step="10" value="1000"></label>
+  <label class="hint" style="display:block">Window width<input id="slW" type="range" min="200" max="4000" step="10" value="3000"></label>
+  <label class="hint" style="display:block">Opacity<input id="slOp" type="range" min="0.2" max="1" step="0.05" value="1"></label>
+  <p id="slInfo" class="hint">No DVT loaded.</p>
 
   <h2>Landmarks for registration</h2>
   <p class="hint" style="margin-top:0">Mark 3 easily palpable points on the model (e.g. cusp tip 16, cusp tip 26, incisal edge 31). In the headset, tap the same points in the same order on the phantom/patient.</p>
@@ -116,6 +128,7 @@
       <li><b>Grab, move, rotate the model:</b> grip button or trigger (controller) · pinch (hand). Pull apart with two hands = scale.</li>
       <li><b>Register:</b> controller button A or X (or “Register” in the menu). Then tap the 3 landmarks on the patient in the same order: hand = pinch exactly at the point, controller = touch the point with the cyan tip of the virtual needle and pull the trigger. A hint in your view shows which point is next.</li>
       <li>After registration the model is <b>locked</b>. Grabbing is disabled so it cannot shift during treatment. Unlock it via the menu.</li>
+      <li><b>DVT slice:</b> menu section “DVT slice”: switch axial / coronal / sagittal, step ◀ ▶ by 1 mm, change window and cut the models. With the slice switched on, the <b>thumbstick</b> (up/down) moves the slice smoothly.</li>
       <li><b>Follow controller (phantom):</b> fix one controller firmly to the phantom, register, then choose “Follow controller → Left/Right” in the menu. The model now moves with the phantom. The mounted controller ignores all buttons.</li>
     </ul>
   </details>
@@ -178,6 +191,7 @@ const state = {
   menu: false,                         // Menü in der Brille sichtbar?
   locked: false,                       // Modell fixiert (nicht greifbar)
   follow: null,                        // 'left' | 'right': Modell folgt einem fest montierten Controller
+  slice: { axis: 'off', pos: 0.5, c: 1000, w: 3000, op: 1, cut: 'off', preset: 0 },   // DVT-Schnittbild
 };
 let segId = 0;
 
@@ -194,7 +208,9 @@ resize();
 /* ---------- Schnittebene ---------- */
 const clipPlane = new THREE.Plane(new V3(0, 1, 0), 1e6);
 const AXES = { x: new V3(1, 0, 0), y: new V3(0, 1, 0), z: new V3(0, 0, 1) };
+const sliceClip = new THREE.Plane(new V3(0, 1, 0), 1e6);   // schneidet die Modelle an der DVT-Schicht
 function updateClip() {
+  updateSliceClip();
   if (!state.clip.on) { clipPlane.normal.set(0, 1, 0); clipPlane.constant = 1e6; return; }
   const a = state.clip.axis;
   const off = state.boxCenter[a] + state.clip.frac * state.half[a];
@@ -226,7 +242,7 @@ function addSegment(name, obj, opts = {}) {
   const color = opts.color || (vertexColors ? '#ffffff' : colorFor(name));
   const mat = new THREE.MeshStandardMaterial({
     color, roughness: 0.55, metalness: 0.05, side: THREE.DoubleSide,
-    clippingPlanes: [clipPlane], vertexColors,
+    clippingPlanes: [clipPlane, sliceClip], vertexColors,
   });
   obj.traverse(o => { if (o.isMesh) { o.material = mat; if (!o.geometry.attributes.normal) o.geometry.computeVertexNormals(); } });
   const seg = { id: ++segId, name, obj, mat, color, visible: true, opacity: 1 };
@@ -263,6 +279,7 @@ function computeBounds() {
     o.geometry.computeBoundingBox();
     box.union(o.geometry.boundingBox.clone().applyMatrix4(m.multiplyMatrices(inv, o.matrixWorld)));
   });
+  if (box.isEmpty() && vol) box.set(vol.lo.clone(), vol.lo.clone().add(vol.size));
   if (box.isEmpty()) return null;
   return box;   // content-Koordinaten (mm)
 }
@@ -316,6 +333,7 @@ async function loadFiles(files) {
   let ok = 0;
   for (const f of files) {
     try {
+      if (/\.dxv$/i.test(f.name)) { await loadVolume(f); ok++; continue; }
       const obj = await parseFile(f);
       addSegment(f.name.replace(/\.[^.]+$/, ''), obj);
       ok++;
@@ -376,11 +394,106 @@ function loadDemo() {
 
 function clearAll() {
   [...state.segments].forEach(removeSegment);
+  removeVolume(); state.slice.axis = 'off';
   clearLandmarks();
   content.position.set(0, 0, 0);
   content.quaternion.identity();
   state.centered = false;
   refreshUI();
+}
+
+/* ---------- DVT-Volumen (.dxv) und Schnittbild ---------- */
+let vol = null;
+const SLICE_AX = { x: 'Sagittal', y: 'Coronal', z: 'Axial' };
+const SLICE_PRESETS = [['Bone', 1000, 3000], ['Teeth', 1600, 2400], ['Soft tissue', 300, 1600]];
+async function loadVolume(file) {
+  const buf = await file.arrayBuffer();
+  if (String.fromCharCode(...new Uint8Array(buf, 0, 4)) !== 'DXV1') throw new Error('not a DXV volume');
+  const hl = new DataView(buf).getUint32(4, true);
+  const h = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 8, hl)));
+  const [nx, ny, nz] = h.dims;
+  const tex = new THREE.Data3DTexture(new Uint8Array(buf, 8 + hl, nx * ny * nz), nx, ny, nz);
+  tex.format = THREE.RedFormat; tex.type = THREE.UnsignedByteType;
+  tex.minFilter = tex.magFilter = THREE.LinearFilter; tex.unpackAlignment = 1; tex.needsUpdate = true;
+  removeVolume();
+  const sp = new V3(...h.spacing);
+  const lo = new V3(...h.origin).addScaledVector(sp, -0.5);   // Ecke des Volumens (mm, DICOM-Koordinaten)
+  const size = new V3(nx, ny, nz).multiply(sp);
+  const mat = new THREE.ShaderMaterial({
+    glslVersion: THREE.GLSL3, side: THREE.DoubleSide,
+    uniforms: {
+      uVol: { value: tex }, uLo: { value: lo }, uSize: { value: size }, uLocal: { value: new THREE.Matrix4() },
+      uMap: { value: new THREE.Vector2(h.valueMin, h.valueMax) }, uWin: { value: new THREE.Vector2(1000, 3000) }, uOp: { value: 1 },
+    },
+    vertexShader: `uniform mat4 uLocal; out vec3 vP;
+      void main() { vP = (uLocal * vec4(position, 1.0)).xyz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `precision highp float; precision highp sampler3D;
+      uniform sampler3D uVol; uniform vec3 uLo; uniform vec3 uSize; uniform vec2 uMap; uniform vec2 uWin; uniform float uOp;
+      in vec3 vP; out vec4 outColor;
+      void main() {
+        vec3 t = (vP - uLo) / uSize;
+        if (any(lessThan(t, vec3(0.0))) || any(greaterThan(t, vec3(1.0)))) discard;
+        float v = mix(uMap.x, uMap.y, texture(uVol, t).r);
+        float g = clamp((v - (uWin.x - 0.5 * uWin.y)) / uWin.y, 0.0, 1.0);
+        outColor = vec4(vec3(g), uOp);
+      }`,
+  });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat);
+  mesh.renderOrder = 2; mesh.visible = false;
+  content.add(mesh);
+  vol = { tex, mat, mesh, lo, size, name: file.name.replace(/\.[^.]+$/, '') };
+  if (state.slice.axis === 'off') state.slice.axis = 'z';
+  updateSlice();
+}
+function removeVolume() {
+  if (!vol) return;
+  content.remove(vol.mesh); vol.mesh.geometry.dispose(); vol.mat.dispose(); vol.tex.dispose();
+  vol = null;
+}
+function slicePosMM() { const a = state.slice.axis; return vol.lo[a] + state.slice.pos * vol.size[a]; }
+function updateSlice() {
+  if (!vol) return;
+  const s = state.slice, m = vol.mesh, a = s.axis, on = a !== 'off';
+  m.visible = on;
+  if (on) {
+    m.position.copy(vol.lo).addScaledVector(vol.size, 0.5);
+    m.position[a] = slicePosMM();
+    m.rotation.set(0, 0, 0);
+    if (a === 'z') m.scale.set(vol.size.x, vol.size.y, 1);
+    else if (a === 'y') { m.rotation.x = Math.PI / 2; m.scale.set(vol.size.x, vol.size.z, 1); }
+    else { m.rotation.y = Math.PI / 2; m.scale.set(vol.size.z, vol.size.y, 1); }
+    m.updateMatrix();
+    vol.mat.uniforms.uLocal.value.copy(m.matrix);
+  }
+  vol.mat.uniforms.uWin.value.set(s.c, s.w);
+  vol.mat.uniforms.uOp.value = s.op;
+  const t = s.op < 0.999;
+  if (vol.mat.transparent !== t) { vol.mat.transparent = t; vol.mat.depthWrite = !t; vol.mat.needsUpdate = true; }
+  panelDirty = true;
+}
+function updateSliceClip() {
+  const s = state.slice;
+  if (!vol || s.axis === 'off' || s.cut === 'off') { sliceClip.normal.set(0, 1, 0); sliceClip.constant = 1e6; return; }
+  const sgn = s.cut === '+' ? 1 : -1;
+  sliceClip.normal.copy(AXES[s.axis]).multiplyScalar(sgn);
+  sliceClip.constant = -sgn * slicePosMM();
+  content.updateMatrixWorld();
+  sliceClip.applyMatrix4(content.matrixWorld);
+}
+function stepSlice(mm) {
+  if (!vol) return;
+  if (state.slice.axis === 'off') state.slice.axis = 'z';
+  const a = state.slice.axis;
+  state.slice.pos = Math.min(1, Math.max(0, state.slice.pos + mm / vol.size[a]));
+  updateSlice();
+}
+function syncSlice() {
+  const s = state.slice, has = !!vol;
+  ['#slAxis', '#slCut', '#slPos', '#slC', '#slW', '#slOp'].forEach(q => { $(q).disabled = !has; });
+  $('#slAxis').value = s.axis; $('#slCut').value = s.cut; $('#slPos').value = s.pos;
+  $('#slC').value = s.c; $('#slW').value = s.w; $('#slOp').value = s.op;
+  $('#slInfo').textContent = !has ? 'No DVT loaded.'
+    : s.axis === 'off' ? `${vol.name}: slice off` : `${vol.name}: ${SLICE_AX[s.axis]} at ${slicePosMM().toFixed(1)} mm`;
 }
 
 /* ---------- Ausrichtung ---------- */
@@ -543,9 +656,16 @@ function syncControls() {
   $('#pick').classList.toggle('on', state.pickMode);
   $('#pick').textContent = state.pickMode ? 'Click on the model …' : 'Set landmarks';
   $('#pickHint').style.display = state.pickMode && !renderer.xr.isPresenting ? 'block' : 'none';
+  syncSlice();
 }
 
 $('#file').onchange = e => { loadFiles(e.target.files); e.target.value = ''; };
+$('#slAxis').onchange = e => { state.slice.axis = e.target.value; updateSlice(); syncSlice(); };
+$('#slCut').onchange = e => { state.slice.cut = e.target.value; panelDirty = true; };
+$('#slPos').oninput = e => { state.slice.pos = +e.target.value; updateSlice(); syncSlice(); };
+$('#slC').oninput = e => { state.slice.c = +e.target.value; updateSlice(); };
+$('#slW').oninput = e => { state.slice.w = +e.target.value; updateSlice(); };
+$('#slOp').oninput = e => { state.slice.op = +e.target.value; updateSlice(); };
 $('#demo').onclick = loadDemo;
 $('#clear').onclick = clearAll;
 document.querySelectorAll('[data-rot]').forEach(b => b.onclick = () => rotateContent(b.dataset.rot));
@@ -872,7 +992,23 @@ function onSelectStart(i) {
 }
 
 /* Controller-Tasten: B/Y = Menü, A/X = Registrierung starten */
+let lastPoll = 0, lastSliceHud = 0;
 function pollButtons() {
+  const now = performance.now(), dt = Math.min(0.05, (now - (lastPoll || now)) / 1000);
+  lastPoll = now;
+  let sliceMoved = false;
+  ctrls.forEach(C => {
+    const pad = C.c.userData.src && C.c.userData.src.gamepad;
+    const ax = pad && !C.c.userData.isHand && !isFollowCtrl(C) && pad.axes && pad.axes.length >= 4 ? pad.axes[3] : 0;
+    if (vol && state.slice.axis !== 'off' && !state.reg.active && Math.abs(ax) > 0.25) {
+      state.slice.pos = Math.min(1, Math.max(0, state.slice.pos - ax * 15 * dt / vol.size[state.slice.axis]));
+      sliceMoved = true;
+    }
+  });
+  if (sliceMoved) {
+    updateSlice();
+    if (now - lastSliceHud > 150) { lastSliceHud = now; hud(`${SLICE_AX[state.slice.axis]} ${slicePosMM().toFixed(1)} mm`, '#9aa3b2', 1200); }
+  }
   ctrls.forEach(C => {
     const gp = C.c.userData.src && C.c.userData.src.gamepad;
     if (!gp || C.c.userData.isHand || isFollowCtrl(C)) return;
@@ -928,6 +1064,13 @@ function layoutPanel() {
   y += 6; label('Clipping plane');
   row([['clip', state.clip.on ? 'Clipping on' : 'Clipping off', state.clip.on],
        ['axis', 'Axis ' + state.clip.axis.toUpperCase()], ['clip-', '◀'], ['clip+', '▶']]);
+  if (vol) {
+    const sl = state.slice;
+    label('DVT slice');
+    row([['sl', sl.axis === 'off' ? 'Slice off' : SLICE_AX[sl.axis], sl.axis !== 'off'], ['sl-', '◀ 1 mm'], ['sl+', '1 mm ▶'], ['slw', SLICE_PRESETS[sl.preset][0]]]);
+    row([['slcut', { off: 'Models not cut', '+': 'Cut: side A', '-': 'Cut: side B' }[sl.cut], sl.cut !== 'off'],
+         ['slop', 'Slice ' + Math.round(sl.op * 100) + ' %']]);
+  }
   label('Size & position');
   const sc = modelRoot.scale.x;
   row([['sc1', '1:1', Math.abs(sc - 1) < 0.01], ['sc2', '×2', Math.abs(sc - 2) < 0.01], ['sc4', '×4', Math.abs(sc - 4) < 0.01], ['place', 'In front of me']]);
@@ -1028,6 +1171,15 @@ function pressPanel(id) {
       state.pickMode = !state.pickMode; state.reg.msg = ''; break;
     case 'reg': startRegistration(); break;
     case 'regx': state.reg.active = false; state.reg.msg = ''; clearRegMarkers(); hudSprite.visible = false; break;
+    case 'sl': state.slice.axis = { off: 'z', z: 'y', y: 'x', x: 'off' }[state.slice.axis]; updateSlice(); break;
+    case 'sl-': stepSlice(-1); break;
+    case 'sl+': stepSlice(1); break;
+    case 'slw': {
+      const sl = state.slice; sl.preset = (sl.preset + 1) % SLICE_PRESETS.length;
+      [, sl.c, sl.w] = SLICE_PRESETS[sl.preset]; updateSlice(); break;
+    }
+    case 'slcut': state.slice.cut = { off: '+', '+': '-', '-': 'off' }[state.slice.cut]; break;
+    case 'slop': state.slice.op = state.slice.op > 0.9 ? 0.7 : state.slice.op > 0.55 ? 0.4 : 1; updateSlice(); break;
     case 'fol': setFollow(arg === 'off' ? null : arg); break;
     case 'lock': state.locked = !state.locked; if (state.locked) [0, 1].forEach(endGrab); break;
     case 'close': showMenu(false); break;

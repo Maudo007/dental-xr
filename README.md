@@ -97,12 +97,41 @@ The accuracy of the Quest 3 is in the millimeter-to-centimeter range.
 The viewer is therefore intended for **teaching, phantom courses and patient education**. It is not suitable for navigation,
 and clinical use is subject to MDR requirements and ethics approval.
 
-## 6. Testing on a Mac without a headset
+## 6. DVT slice (test version)
+
+The viewer can show the **original DVT grey values** as a slice that sits at the correct position between the STL models, and after registration inside the phantom or patient.
+
+**Preparation on the Mac (once per case):** the DICOM folder is converted into one compact file:
+
+```
+python3 tools/dicom_to_dxv.py <DICOM folder> Case01_DVT.dxv
+```
+
+- Requires Python with `pydicom` and `numpy`.
+- The file contains **only voxel values and geometry**. Name, birth date, IDs, institution and dates are not copied.
+- Resolution is halved (e.g. 0.16 mm → 0.32 mm) so the Quest can handle it. Typical size: about 50 MB.
+- The DVT and the STLs must come from **the same case/project** so they share one coordinate system.
+
+**Loading:** choose the `.dxv` file together with the STLs via “Load files”.
+
+**On screen:** section “DVT slice”: axial / coronal / sagittal, position, window centre and width (like the window/level in your viewer), opacity, and “Cut models” to remove the models on one side of the slice.
+
+**In the headset (menu section “DVT slice”):**
+- Slice off → Axial → Coronal → Sagittal
+- ◀ 1 mm / 1 mm ▶ moves the slice
+- Window presets: Bone / Teeth / Soft tissue
+- “Cut: side A / side B” removes the models on one side of the slice
+- Slice opacity 100 / 70 / 40 %
+- **Thumbstick up/down** moves the slice smoothly (about 15 mm per second at full deflection). The current position in mm is shown briefly.
+
+For teaching and phantom work only. Diagnosis remains with your certified DVT viewer.
+
+## 7. Testing on a Mac without a headset
 
 The page can also be opened on a Mac (Chrome or Safari). Loading, orientation, clipping and landmarks work normally there.
 The “Start AR/VR” buttons are only active in the headset.
 
-## 7. Possible next steps
+## 8. Possible next steps
 
 - Automatically reduce large scans inside the viewer
 - Several cases as a list that students open via link
